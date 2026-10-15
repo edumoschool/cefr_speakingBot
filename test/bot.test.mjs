@@ -201,3 +201,65 @@ test('admin commands: /setkey deletes the message, non-admins are ignored', asyn
   await onMessage(msg(admin, '/grant 999 2'));
   assert.equal(attempts(999), 3);
 });
+
+// ---- chat voice mode (voice messages → api.getFileContent → same pipeline)
+const voiceMsg = (id, fileId, duration, mid = 10) => ({
+  message_id: mid, chat: { id, type: 'private' }, from: { id, first_name: `U${id}` },
+  voice: { file_id: fileId, file_unique_id: fileId, duration, mime_type: 'audio/ogg', file_size: 6000 },
+});
+
+test('chat voice mode: whole mock via voice messages, graded once, result in chat', async () => {
+  fake.channelMembers = new Set([600]);
+  await onMessage(msg(600, '/start'));
+  await onMessage(msg(600, '/voice'));
+  assert.equal(attempts(600), 0, 'starting spends the attempt');
+  // a voice with no answer yet asks question 1; part 1.2 pictures come from the hosted app
+  let texts = () => fake.sent.filter((c) => c.method === 'sendMessage' && c.params.chat_id === 600).map((c) => c.params.text);
+  assert.match(texts().at(-1), /question 1\/8/);
+
+  for (let i = 0; i < 8; i++) {
+    fake.files.set(`f${i}`, new Uint8Array(6000).fill(i + 1));
+    await onMessage(voiceMsg(600, `f${i}`, 20, 100 + i));
+    if (i === 2) assert.ok(fake.sent.some((c) => c.method === 'sendMediaGroup' && c.params.media[0].media.startsWith('https://app1.tgcloud.ai/img/')));
+  }
+  assert.equal(calls.deepgram, 8);
+  assert.equal(calls.openai, 5, '4 parts + summary');
+  const s = q1('SELECT status, score FROM sessions WHERE user_id = 600');
+  assert.equal(s.status, 'done');
+  const result = fake.sent.filter((c) => c.method === 'sendMessage' && c.params.chat_id === 600).at(-1);
+  assert.match(result.params.text, new RegExp(`Score: <b>${s.score}/75</b>`));
+  assert.equal(result.params.reply_markup.inline_keyboard[0][0].web_app.url.includes('#result='), true);
+
+  // a stray voice after finishing doesn't spend anything or crash
+  await onMessage(voiceMsg(600, 'f0', 10));
+  assert.match(texts().at(-1), /no mock in progress/);
+});
+
+test('chat voice mode: limits and resume', async () => {
+  fake.channelMembers = new Set([700]);
+  await onMessage(msg(700, '/voice'));
+  fake.files.set('long', new Uint8Array(6000).fill(1));
+  await onMessage(voiceMsg(700, 'long', 30 + 16)); // part 1.1 limit is 30 s (+15 s grace)
+  assert.equal(calls.deepgram, 0, 'over-long voice is not transcribed');
+  assert.match(fake.sent.filter((c) => c.method === 'sendMessage').at(-1).params.text, /limit for this question is 30 s/);
+
+  await onMessage(voiceMsg(700, 'long', 25));
+  assert.equal(q1('SELECT count(*) n FROM answers').n, 1);
+  // /voice again resumes at question 2 without spending another attempt
+  await onMessage(msg(700, '/voice'));
+  assert.match(fake.sent.filter((c) => c.method === 'sendMessage').at(-1).params.text, /question 2\/8/);
+  // the Mini App sees the same open session with that answer
+  const st = await startMock({}, ctx(700));
+  assert.deepEqual(st.answered, ['p1_1_1']);
+  // /finish grades what was answered
+  await onMessage(msg(700, '/finish'));
+  assert.equal(q1('SELECT status FROM sessions WHERE user_id = 700').status, 'done');
+});
+
+test('voice without a mock in progress points to /voice', async () => {
+  await onMessage(msg(800, '/start'));
+  fake.files.set('x', new Uint8Array(10));
+  await onMessage(voiceMsg(800, 'x', 5));
+  assert.match(fake.sent.filter((c) => c.method === 'sendMessage').at(-1).params.text, /Send \/voice/);
+  assert.equal(calls.deepgram, 0);
+});

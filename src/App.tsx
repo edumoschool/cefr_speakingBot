@@ -109,7 +109,7 @@ export default function App() {
       case 'home':
         return me && <Home me={me} onStart={onStart} onOpenResult={openResult} onVocab={() => setScreen({ name: 'vocab' })} />;
       case 'ready':
-        return <Ready resuming={!!me?.active} onBegin={begin} onBack={() => setScreen({ name: 'home' })} />;
+        return <Ready resuming={!!me?.active} botUsername={me?.botUsername ?? ''} onBegin={begin} onBack={() => setScreen({ name: 'home' })} />;
       case 'exam':
         return (
           <Exam

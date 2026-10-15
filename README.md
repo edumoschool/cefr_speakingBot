@@ -8,6 +8,8 @@ score out of 75, a CEFR level (B1 / B2 / C1) and detailed feedback.
 - Access requires membership of your Telegram channel.
 - **1 free mock** for every new user.
 - **Referral link** `t.me/<bot>?start=ref_<id>`: every 3 referred users who join the channel give the referrer **+1 attempt**.
+- **Two ways to answer**: record in the Mini App, or take the same mock **in the bot chat with voice messages** (`/voice`).
+  The chat option is a fallback for phones where the Mini App can't use the microphone.
 - 34 complete mocks taken from your PDFs, with 102 exam pictures and model answers for the 14 Mock Book tests. There is also an EN/UZ/RU topic vocabulary list.
 
 ## Project layout
@@ -34,6 +36,8 @@ Mini App ──Telegram.WebApp.Serverless.call──▶ endpoints (init data ver
   record answer ─▶ upload_answer (base64 chunks) ─▶ Deepgram nova-3 ─▶ transcript + speech metrics ─▶ answers
   last answer of a part ─▶ grade_part (background) ─▶ OpenAI, one call per part ─▶ part_grades
   end ─▶ finish_mock ─▶ guardrails + scoring + short summary ─▶ result (also sent to the chat)
+Chat mode: /voice ─▶ question in chat (photos via the hosted app URL) ─▶ voice message ─▶ api.getFileContent(file_id)
+  ─▶ same transcription, answers, per-part grading and attempt as the Mini App ─▶ next question … ─▶ result in chat
 Bot updates ─▶ handlers/* (webhook managed by the platform)
 ```
 
@@ -43,6 +47,8 @@ Platform-specific design decisions:
 |---|---|
 | No npm packages at runtime, so the `openai` and `@deepgram/sdk` packages can't be used | Both are called through their REST APIs with the platform's `fetch`. These are the same requests the SDKs make. |
 | Endpoints take JSON only | Recordings are sent as base64 in chunks of 300k characters or less. They are assembled on the last chunk, transcribed, then deleted. Re-sending the last chunk retries a failed transcription. |
+| Telegram file helpers | Chat voice messages are downloaded with `api.getFileContent(file_id)`, so the code never handles the bot token or a download URL. Telegram's 20 MB getFile cap is far above a 2-minute voice note. Voices longer than the time limit plus 15 s are rejected before transcription. |
+| `fetch` responses are read as text, max 30 MB | Deepgram and OpenAI return JSON (a few KB to tens of KB), read with `res.json()`. Audio bytes only go out, as a `Uint8Array` request body. |
 | Request time limits | Each answer is transcribed as soon as it is recorded. Each part is graded in the background while the student keeps going. The result is ready a few seconds after the last answer (6.4 s in local testing). |
 | No secret store | API keys live in the `settings` table. An admin sets them with `/setkey`, and the bot deletes that message immediately. |
 | Raw SQL: `db.run` is for writes, `db.all`/`db.get` for reads | Every `INSERT/UPDATE … RETURNING` goes through `returning()` (`lib/db.js`), which reads `db.run(...).rows`. The local stand-in rejects writes passed to `db.all`, so tests catch mistakes. |
@@ -83,7 +89,7 @@ Then, in Telegram:
    - `/setup https://app<id>.tgcloud.ai/` sets the Mini App URL, the menu button and the command list, and checks the channel admin rights.
 3. Optionally, set the Mini App in @BotFather (`/newapp` or Main Mini App) with the same URL, so that `t.me/<bot>/<app>?startapp=ref_<id>` also works.
 
-Admin commands: `/stats` and `/grant <userId> <n>`. Schema changes: edit `tgcloud/schema.js`, then run `npm run deploy` and `npx tgcloud migrate`.
+User commands: `/start`, `/voice` (mock in chat), `/finish`, `/referral`, `/balance`. Admin commands: `/stats` and `/grant <userId> <n>`. Schema changes: edit `tgcloud/schema.js`, then run `npm run deploy` and `npx tgcloud migrate`.
 
 ## Local development
 

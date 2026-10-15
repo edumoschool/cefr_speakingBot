@@ -78,10 +78,7 @@ export function stepFor(session, key) {
  * so re-sending the last chunk retries a failed transcription.
  */
 export async function receiveChunk(session, { key, index, total, mime, data }) {
-  if (session.status !== 'in_progress') throw fail('FINISHED', 'This mock is already finished.');
-  if (nowSec() - session.created_at > SESSION_TTL_SEC) {
-    throw fail('EXPIRED', 'This mock has expired. Finish it to get results for the answers you recorded.');
-  }
+  checkOpen(session);
   const step = stepFor(session, key);
   if (!Number.isInteger(total) || total < 1 || total > MAX_CHUNKS || !Number.isInteger(index) || index < 0 || index >= total) {
     throw fail('BAD_REQUEST', 'Bad chunk index');
@@ -104,13 +101,36 @@ export async function receiveChunk(session, { key, index, total, mime, data }) {
   const rows = await db.all(sql`SELECT data FROM audio_chunks
                                 WHERE session_id = ${session.id} AND step_key = ${key} AND total = ${total} ORDER BY idx`);
   const audio = concatBytes(rows.map((r) => toBytes(r.data)));
+  const { words } = await saveAudioAnswer(session, step, audio, mime);
+  await db.run(sql`DELETE FROM audio_chunks WHERE session_id = ${session.id} AND step_key = ${key}`);
+  return { done: true, words };
+}
+
+export function checkOpen(session) {
+  if (session.status !== 'in_progress') throw fail('FINISHED', 'This mock is already finished.');
+  if (nowSec() - session.created_at > SESSION_TTL_SEC) {
+    throw fail('EXPIRED', 'This mock has expired. Finish it to get results for the answers you recorded.');
+  }
+}
+
+/**
+ * Transcribes one complete recording and stores it as the answer to `step`.
+ * Shared by the Mini App (chunked base64 upload) and chat voice messages.
+ * @returns {{ inserted: boolean, words: number }} inserted=false if the step already had an answer
+ */
+export async function saveAudioAnswer(session, step, audio, mime) {
   const safeMime = /^audio\/[\w.+-]+(;\s*codecs=[\w.]+)?$/.test(mime ?? '') ? mime : 'audio/webm';
   const { transcript, metrics } =
     audio.length < MIN_AUDIO_BYTES ? { transcript: '', metrics: emptyMetrics(step.speakSec) } : await transcribe(audio, safeMime, step.speakSec);
-  await db.run(sql`INSERT INTO answers (session_id, step_key, transcript, metrics)
-                   VALUES (${session.id}, ${key}, ${transcript}, ${JSON.stringify(metrics)}) ON CONFLICT DO NOTHING`);
-  await db.run(sql`DELETE FROM audio_chunks WHERE session_id = ${session.id} AND step_key = ${key}`);
-  return { done: true, words: metrics.wordCount };
+  const rows = await returning(sql`INSERT INTO answers (session_id, step_key, transcript, metrics)
+                   VALUES (${session.id}, ${step.key}, ${transcript}, ${JSON.stringify(metrics)}) ON CONFLICT DO NOTHING RETURNING step_key`);
+  return { inserted: rows.length > 0, words: metrics.wordCount };
+}
+
+/** The first question without an answer, or null when all are answered. */
+export async function nextStep(session) {
+  const done = new Set(await answeredKeys(session.id));
+  return buildSteps(getTest(session.test_id)).find((s) => !done.has(s.key)) ?? null;
 }
 
 function toBytes(v) {

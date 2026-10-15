@@ -2,8 +2,14 @@
 import { api } from 'sdk';
 import { REFERRALS_PER_ATTEMPT } from '../lib/config.js';
 import { openAppKeyboard, refreshMembership, upsertUser } from '../lib/users.js';
+import { startChatMock } from '../lib/chatmode.js';
 
 export default async function (query) {
+  if (query.data === 'voice_mode') {
+    await api.answerCallbackQuery({ callback_query_id: query.id });
+    await upsertUser(query.from);
+    return startChatMock(query.from.id);
+  }
   if (query.data !== 'check_join') return api.answerCallbackQuery({ callback_query_id: query.id });
   await upsertUser(query.from);
   if (!(await refreshMembership(query.from.id))) {

@@ -2,6 +2,7 @@ export interface Me {
   user: { id: number; firstName: string | null; attempts: number };
   isMember: boolean;
   channelUrl: string;
+  botUsername: string;
   referral: { link: string; qualified: number; per: number; progress: number };
   active: { id: string; status: 'in_progress' | 'grading'; testTitle?: string; answered: string[] } | null;
   history: { id: string; title: string; score: number; level: string; date: number }[];

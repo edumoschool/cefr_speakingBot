@@ -13,6 +13,7 @@ export interface TgWebApp {
   enableClosingConfirmation?(): void;
   disableClosingConfirmation?(): void;
   openTelegramLink(url: string): void;
+  close?(): void;
   openLink(url: string): void;
   showAlert?(text: string): void;
   onEvent(event: string, cb: () => void): void;

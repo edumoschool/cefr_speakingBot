@@ -26,6 +26,7 @@ export default async function (input, ctx) {
     user: { id: from.id, firstName: user.first_name, attempts: user.attempts },
     isMember,
     channelUrl: CHANNEL_URL,
+    botUsername,
     referral: {
       link: `https://t.me/${botUsername}?start=ref_${from.id}`,
       qualified: user.ref_qualified_count,

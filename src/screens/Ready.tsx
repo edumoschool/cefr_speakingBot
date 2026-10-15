@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { IonButton, IonContent, IonItem, IonList, IonPage, IonToggle, useIonAlert } from '@ionic/react';
+import { openTelegramLink, tg } from '../telegram';
 
 export const prefs = { readAloud: true };
 
-export function Ready({ resuming, onBegin, onBack }: { resuming: boolean; onBegin: (s: MediaStream) => void; onBack: () => void }) {
+export function Ready({ resuming, botUsername, onBegin, onBack }: { resuming: boolean; botUsername: string; onBegin: (s: MediaStream) => void; onBack: () => void }) {
   const [readAloud, setReadAloud] = useState(prefs.readAloud);
   const [alert] = useIonAlert();
 
@@ -13,8 +14,18 @@ export function Ready({ resuming, onBegin, onBack }: { resuming: boolean; onBegi
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
       onBegin(stream);
     } catch {
-      alert({ header: 'Microphone needed', message: 'Please allow microphone access to take the speaking test.', buttons: ['OK'] });
+      alert({
+        header: 'Microphone not available',
+        message: 'Allow microphone access and try again — or take the mock in the bot chat by sending voice messages.',
+        buttons: [{ text: 'Try again', role: 'cancel' }, { text: 'Use voice messages', handler: voiceInChat }],
+      });
     }
+  };
+
+  // Same mock, answered with voice messages in the bot chat (tgcloud/lib/chatmode.js).
+  const voiceInChat = () => {
+    openTelegramLink(`https://t.me/${botUsername}?start=voice`);
+    setTimeout(() => tg?.close?.(), 300);
   };
 
   return (
@@ -36,6 +47,9 @@ export function Ready({ resuming, onBegin, onBack }: { resuming: boolean; onBegi
           </IonList>
           <IonButton expand="block" style={{ width: '100%' }} onClick={begin} data-testid="begin">
             Allow microphone &amp; begin
+          </IonButton>
+          <IonButton fill="clear" size="small" onClick={voiceInChat}>
+            No microphone here? Answer with voice messages in chat
           </IonButton>
           <IonButton fill="clear" onClick={onBack}>
             Back

@@ -5,6 +5,7 @@ import { ADMIN_IDS, CHANNEL_ID, CHANNEL_URL, REFERRALS_PER_ATTEMPT } from '../li
 import { KEYS, setSetting } from '../lib/settings.js';
 import { getUser, grantAttempts, openAppKeyboard, refreshMembership, upsertUser } from '../lib/users.js';
 import { parseRefPayload } from '../lib/util.js';
+import { finishInChat, onVoice, startChatMock } from '../lib/chatmode.js';
 
 export default async function (message) {
   if (message.chat?.type !== 'private' || !message.from || message.from.is_bot) return;
@@ -14,9 +15,13 @@ export default async function (message) {
 
   if (cmd === '/start') {
     await upsertUser(from, parseRefPayload(args[0]));
+    if (args[0] === 'voice') return startChatMock(from.id);
     return sendWelcome(from, await refreshMembership(from.id));
   }
   await upsertUser(from);
+
+  // Answering a question of a chat-mode mock (see lib/chatmode.js).
+  if (message.voice) return onVoice(message);
 
   switch (cmd) {
     case '/referral':
@@ -33,6 +38,10 @@ export default async function (message) {
         reply_markup: { inline_keyboard: [[{ text: '📤 Share link', url: shareUrl(link) }]] },
       });
     }
+    case '/voice':
+      return startChatMock(from.id);
+    case '/finish':
+      return finishInChat(from.id);
     case '/balance': {
       const u = await getUser(from.id);
       return api.sendMessage({ chat_id: from.id, text: `You have ${u.attempts} mock attempt(s).`, reply_markup: await openAppKeyboard() });
@@ -59,7 +68,14 @@ async function sendWelcome(from, member) {
     `questions and gives you an instant score out of 75, your CEFR level and detailed feedback.\n\n` +
     `🎁 Your first mock is <b>free</b>.\n👥 Every ${REFERRALS_PER_ATTEMPT} friends who join the channel through your link = <b>+1 mock</b> (/referral).`;
   if (member) {
-    return api.sendMessage({ chat_id: from.id, parse_mode: 'HTML', text: intro, reply_markup: await openAppKeyboard() });
+    const app = await openAppKeyboard();
+    const voice = [{ text: '🎙 Take it here with voice messages', callback_data: 'voice_mode' }];
+    return api.sendMessage({
+      chat_id: from.id,
+      parse_mode: 'HTML',
+      text: intro,
+      reply_markup: { inline_keyboard: [...(app?.inline_keyboard ?? []), voice] },
+    });
   }
   return api.sendMessage({
     chat_id: from.id,
@@ -109,6 +125,7 @@ async function setup(chat_id, url) {
   await api.setMyCommands({
     commands: [
       { command: 'start', description: 'Open the speaking mock' },
+      { command: 'voice', description: 'Take the mock here in chat with voice messages' },
       { command: 'referral', description: 'Invite friends and earn free mocks' },
       { command: 'balance', description: 'How many mocks I have left' },
     ],
