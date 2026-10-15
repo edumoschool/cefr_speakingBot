@@ -6,6 +6,7 @@ import { gradePart as llmGradePart, summarize } from './grading.js';
 import { CRITERIA, scorePart, totalScore } from './scoring.js';
 import { transcribe } from './speech.js';
 import { base64ToBytes, concatBytes, newId, nowSec } from './util.js';
+import { returning } from './db.js';
 
 const fail = (code, message) => new EndpointError(message, { code });
 
@@ -44,7 +45,7 @@ export async function getOwnSession(id, userId) {
 export async function startSession(userId) {
   const taken = await db.all(sql`SELECT test_id FROM sessions WHERE user_id = ${userId}`);
   const test = pickTest(taken.map((r) => r.test_id));
-  const spent = await db.all(sql`
+  const spent = await returning(sql`
     UPDATE users SET attempts = attempts - 1
     WHERE id = ${userId} AND attempts > 0
       AND NOT EXISTS (SELECT 1 FROM sessions WHERE user_id = ${userId} AND status IN ('in_progress', 'grading'))
@@ -136,12 +137,12 @@ async function partAnswers(session, part) {
 export async function gradeSessionPart(session, part) {
   if (!PARTS.includes(part)) throw fail('BAD_REQUEST', 'Unknown part');
   const now = nowSec();
-  let locked = (await db.all(sql`INSERT INTO part_grades (session_id, part, status, updated_at)
+  let locked = (await returning(sql`INSERT INTO part_grades (session_id, part, status, updated_at)
                                  VALUES (${session.id}, ${part}, 'running', ${now}) ON CONFLICT DO NOTHING RETURNING part`)).length > 0;
   if (!locked) {
     const cur = await db.get(sql`SELECT status, result FROM part_grades WHERE session_id = ${session.id} AND part = ${part}`);
     if (cur.status === 'done') return JSON.parse(cur.result);
-    locked = (await db.all(sql`UPDATE part_grades SET updated_at = ${now}
+    locked = (await returning(sql`UPDATE part_grades SET updated_at = ${now}
                                WHERE session_id = ${session.id} AND part = ${part} AND status = 'running' AND updated_at < ${now - PART_LOCK_SEC}
                                RETURNING part`)).length > 0;
     if (!locked) throw fail('BUSY', 'This part is being assessed. Try again in a few seconds.');
@@ -165,7 +166,7 @@ export async function gradeSessionPart(session, part) {
  * @returns {Promise<{session: object, fresh: boolean}>}
  */
 export async function finishSession(id, userId) {
-  const locked = await db.all(sql`UPDATE sessions SET status = 'grading'
+  const locked = await returning(sql`UPDATE sessions SET status = 'grading'
                                   WHERE id = ${id} AND user_id = ${userId} AND status = 'in_progress' RETURNING id`);
   if (!locked.length) {
     const cur = await getOwnSession(id, userId);

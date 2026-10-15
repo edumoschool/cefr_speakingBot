@@ -2,6 +2,7 @@ import { db, api } from 'sdk';
 import { sql } from 'sdk/db';
 import { CHANNEL_ID, FREE_ATTEMPTS, REFERRALS_PER_ATTEMPT } from './config.js';
 import { getSetting, KEYS } from './settings.js';
+import { returning } from './db.js';
 
 /**
  * Creates the user on first contact (free attempt + referrer, if valid) or
@@ -15,7 +16,7 @@ export async function upsertUser(from, referrerId) {
     const exists = await db.get(sql`SELECT 1 AS x FROM users WHERE id = ${referrerId}`);
     if (exists) ref = referrerId;
   }
-  const inserted = await db.all(sql`
+  const inserted = await returning(sql`
     INSERT INTO users (id, username, first_name, language_code, attempts, referred_by)
     VALUES (${from.id}, ${from.username ?? null}, ${from.first_name ?? null}, ${from.language_code ?? null}, ${FREE_ATTEMPTS}, ${ref})
     ON CONFLICT (id) DO NOTHING
@@ -64,14 +65,14 @@ export async function refreshMembership(userId) {
  * double-count.
  */
 export async function qualifyReferral(userId) {
-  const marked = await db.all(sql`
+  const marked = await returning(sql`
     UPDATE users SET ref_qualified = 1
     WHERE id = ${userId} AND ref_qualified = 0 AND referred_by IS NOT NULL
     RETURNING referred_by`);
   if (!marked.length) return null;
   const referrerId = marked[0].referred_by;
   const per = REFERRALS_PER_ATTEMPT;
-  const [r] = await db.all(sql`
+  const [r] = await returning(sql`
     UPDATE users SET
       ref_qualified_count = ref_qualified_count + 1,
       attempts = attempts + CASE WHEN (ref_qualified_count + 1) % ${per} = 0 THEN 1 ELSE 0 END
@@ -91,7 +92,7 @@ export async function qualifyReferral(userId) {
 }
 
 export async function grantAttempts(userId, delta, reason) {
-  const rows = await db.all(sql`UPDATE users SET attempts = MAX(attempts + ${delta}, 0) WHERE id = ${userId} RETURNING attempts`);
+  const rows = await returning(sql`UPDATE users SET attempts = MAX(attempts + ${delta}, 0) WHERE id = ${userId} RETURNING attempts`);
   if (!rows.length) return null;
   await db.run(sql`INSERT INTO attempt_ledger (user_id, delta, reason) VALUES (${userId}, ${delta}, ${reason})`);
   return rows[0].attempts;

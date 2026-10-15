@@ -102,7 +102,12 @@ const db = {
     const r = exec(stmt, args, 'run');
     return { rowsAffected: Number(r.changes), lastInsertRowid: Number(r.lastInsertRowid), rows: [] };
   },
-  async all(q, params) { const { stmt, args } = prepare(q, params); return exec(stmt, args, 'all').map((r) => ({ ...r })); },
+  async all(q, params) {
+    const { stmt, args } = prepare(q, params);
+    // Mirror the platform contract: db.all/get/values are for reads; writes go through db.run.
+    if (!/^\s*(SELECT|WITH|PRAGMA)\b/i.test(stmt.sourceSQL)) throw new Error('db.all/get/values are for reads — use db.run for writes');
+    return exec(stmt, args, 'all').map((r) => ({ ...r }));
+  },
   async get(q, params) { const rows = await db.all(q, params); return rows[0] ?? null; },
   async values(q, params) { return (await db.all(q, params)).map((r) => Object.values(r)); },
 };

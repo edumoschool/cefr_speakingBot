@@ -45,6 +45,7 @@ Platform-specific design decisions:
 | Endpoints take JSON only | Recordings are sent as base64 in chunks of 300k characters or less. They are assembled on the last chunk, transcribed, then deleted. Re-sending the last chunk retries a failed transcription. |
 | Request time limits | Each answer is transcribed as soon as it is recorded. Each part is graded in the background while the student keeps going. The result is ready a few seconds after the last answer (6.4 s in local testing). |
 | No secret store | API keys live in the `settings` table. An admin sets them with `/setkey`, and the bot deletes that message immediately. |
+| Raw SQL: `db.run` is for writes, `db.all`/`db.get` for reads | Every `INSERT/UPDATE … RETURNING` goes through `returning()` (`lib/db.js`), which reads `db.run(...).rows`. The local stand-in rejects writes passed to `db.all`, so tests catch mistakes. |
 | SQLite, no foreign keys, no transactions | Every balance change is a single atomic `UPDATE … RETURNING`. A partial unique index allows only one open mock per user, and a lost race refunds the attempt. Integrity is enforced in `lib/`, and every change to a balance is recorded in `attempt_ledger`. |
 
 Scoring: for each part, the model gives a CEFR sub-level per criterion (fluency and coherence, vocabulary, grammar, pronunciation, task response).
@@ -54,12 +55,23 @@ Pronunciation is judged from Deepgram evidence: how confident it was about each 
 
 ## Deploy
 
+First, in **@BotFather → your bot → Serverless**, switch Serverless on. Then open **CLI Access → Access token** and copy the
+token (`app<id>:<secret>`). It is not the bot's API token.
+
 ```bash
 npm install
 # 1. Edit tgcloud/lib/config.js: CHANNEL_ID, CHANNEL_URL, ADMIN_IDS (your Telegram user id)
-npx tgcloud login          # link the project to your bot
+npx tgcloud login          # paste the CLI access token (in CI: set TGCLOUD_TOKEN instead)
 npm run deploy             # vite build + tgcloud push (prints the Mini App URL, https://app<id>.tgcloud.ai/)
 npx tgcloud migrate        # create the database tables (push never touches the DB)
+npx tgcloud webhook        # should say "in sync": message, callback_query, chat_member
+```
+
+Smoke-test the code on the platform without deploying:
+
+```bash
+npx tgcloud run handlers/message '{ chat: { id: 1, type: "private" }, from: { id: 1, first_name: "Ann" }, text: "/start" }'
+npx tgcloud run endpoints/me '{}' --ctx '{ initData: { user: { id: 1, first_name: "Ann" } } }'
 ```
 
 Then, in Telegram:

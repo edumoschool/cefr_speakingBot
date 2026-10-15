@@ -119,7 +119,10 @@ async function withRetry<T>(fn: () => Promise<T>, tries = 3): Promise<T> {
     try {
       return await fn();
     } catch (e: any) {
-      const retryable = !e?.code || e.code === 'INTERNAL' || e.code === 'ERROR' || e.code === 'BUSY';
+      // Our own EndpointErrors are final (bad input, finished mock…) except BUSY; auth errors won't fix
+      // themselves; anything else (internal error, network, timeout) is worth another try.
+      const final = (e?.type === 'ENDPOINT_ERROR' && e.code !== 'BUSY') || e?.type === 'UNAUTHORIZED';
+      const retryable = !final;
       if (!retryable || attempt >= tries) throw e;
       await sleep(1500 * attempt);
     }
