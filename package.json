@@ -1,32 +1,39 @@
 {
   "name": "cefr-speaking-bot",
   "version": "1.0.0",
-  "description": "Multilevel (CEFR) speaking mock exam \u2014 Telegram Mini App on Vercel serverless with OpenAI + Deepgram assessment",
+  "description": "Multilevel (CEFR) speaking mock \u2014 Telegram Mini App (React + Ionic) on Telegram Serverless, with OpenAI + Deepgram assessment",
   "scripts": {
-    "dev": "tsx scripts/dev-server.ts",
-    "typecheck": "tsc --noEmit",
-    "test": "tsx --test test/*.test.ts",
-    "db:migrate": "tsx scripts/migrate.ts"
+    "dev": "vite",
+    "dev:api": "node --no-warnings --import ./dev/register.mjs dev/server.mjs",
+    "build": "tsc -p tsconfig.json && vite build",
+    "test": "node --no-warnings --import ./dev/register.mjs --test test/*.test.mjs",
+    "deploy": "npm run build && tgcloud push",
+    "migrate": "tgcloud migrate",
+    "status": "tgcloud status",
+    "run": "tgcloud run"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/edumoschool/cefr_speakingBot.git"
   },
   "dependencies": {
-    "@deepgram/sdk": "^5.15.0",
-    "@neondatabase/serverless": "^1.2.0",
-    "openai": "^7.34.0",
-    "pg": "^8.23.1"
+    "@ionic/react": "^8.8.19",
+    "ionicons": "^7.4.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@tgcloud/cli": "^0.2.0",
     "@types/node": "^26.6.5",
-    "@types/pg": "^8.23.1",
-    "tsx": "^4.23.15",
-    "typescript": "^5.9.3"
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.4"
   },
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
   }
 }

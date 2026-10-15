@@ -1,0 +1,9 @@
+{
+  // The Vite build output is deployed as the Mini App (https://app<id>.tgcloud.ai/).
+  // Always build before pushing: `npm run deploy` does both.
+  "static": {
+    "source": "dist",
+    "immutable": ["/assets/*"]
+  },
+  "$schema": "./node_modules/@tgcloud/cli/schema/tgcloud.json"
+}

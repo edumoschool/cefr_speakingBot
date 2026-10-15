@@ -1,5 +1,6 @@
-node_modules
+.tgcloud/
+node_modules/
+dist/
+dev/.local.db*
 .env
-.env.local
-.vercel
 *.log

@@ -1,0 +1,203 @@
+// Runs the real tgcloud handlers and endpoints against the local sdk stand-in
+// (node --import ./dev/register.mjs). OpenAI and Deepgram are faked via fake.fetch.
+import assert from 'node:assert/strict';
+import { beforeEach, test } from 'node:test';
+import { fake } from 'sdk';
+import { _database, _reset, createSchema } from 'sdk/db';
+import * as schema from '../tgcloud/schema.js';
+import onMessage from '../tgcloud/handlers/message.js';
+import onCallback from '../tgcloud/handlers/callback_query.js';
+import onChatMember from '../tgcloud/handlers/chat_member.js';
+import me from '../tgcloud/endpoints/me.js';
+import startMock from '../tgcloud/endpoints/start_mock.js';
+import uploadAnswer from '../tgcloud/endpoints/upload_answer.js';
+import gradePart from '../tgcloud/endpoints/grade_part.js';
+import finishMock from '../tgcloud/endpoints/finish_mock.js';
+import getResult from '../tgcloud/endpoints/get_result.js';
+import { CHANNEL_ID } from '../tgcloud/lib/config.js';
+
+const ctx = (id, extra = {}) => ({ initData: { user: { id, first_name: `U${id}` }, ...extra } });
+const msg = (id, text) => ({ message_id: 1, chat: { id, type: 'private' }, from: { id, first_name: `U${id}` }, text });
+const q1 = (sql, ...p) => _database().prepare(sql).get(...p);
+const attempts = (id) => q1('SELECT attempts FROM users WHERE id = ?', id).attempts;
+const calls = { deepgram: 0, openai: 0 };
+
+beforeEach(() => {
+  _reset();
+  createSchema(_database(), schema);
+  fake.sent.length = 0;
+  fake.channelMembers = new Set();
+  calls.deepgram = calls.openai = 0;
+  fake.fetch = async (url, init) => {
+    if (url.startsWith('https://api.deepgram.com/')) {
+      calls.deepgram++;
+      assert.ok(init.body instanceof Uint8Array && init.body.length > 0);
+      const words = 'well i think it depends on the situation because people are different'.split(' ')
+        .map((w, i) => ({ word: w, start: i * 0.4, end: i * 0.4 + 0.3, confidence: 0.92 }));
+      return Response.json({ results: { channels: [{ alternatives: [{ transcript: 'Well, I think it depends on the situation because people are different.', words }] }] } });
+    }
+    if (url.startsWith('https://api.openai.com/')) {
+      calls.openai++;
+      const body = JSON.parse(init.body);
+      const name = body.response_format.json_schema.name;
+      const content = name === 'summary'
+        ? { overall_feedback: 'Solid B1 performance.', strengths: ['Clear'], priorities: ['Longer answers'] }
+        : { fluency_coherence: 'B2', lexical_resource: 'B1+', grammar: 'B1', pronunciation: 'B2-', task_response: 'B1', feedback: 'ok',
+            steps: JSON.parse(body.messages[1].content).answers.map((a) => ({ key: a.key, comment: 'fine' })),
+            corrections: [{ original: 'people is', corrected: 'people are', explanation: 'plural' }], vocabulary_upgrades: [], pronunciation_tips: ['tip'] };
+      return Response.json({ model: body.model, choices: [{ message: { content: JSON.stringify(content) } }] });
+    }
+    throw new Error('unexpected fetch ' + url);
+  };
+  q1("INSERT INTO settings (key, value) VALUES ('openai_api_key', 'sk-test'), ('deepgram_api_key', 'dg-test'), ('app_url', 'https://app1.tgcloud.ai/')");
+});
+
+test('start: new user gets 1 free attempt and a join prompt when not a member', async () => {
+  await onMessage(msg(100, '/start'));
+  assert.equal(attempts(100), 1);
+  const welcome = fake.sent.find((c) => c.method === 'sendMessage');
+  assert.equal(welcome.params.reply_markup.inline_keyboard[1][0].callback_data, 'check_join');
+});
+
+test('referrals: +1 attempt per 3 friends who join the channel, counted once', async () => {
+  await onMessage(msg(100, '/start'));
+  for (const id of [201, 202, 203, 204]) await onMessage(msg(id, '/start ref_100'));
+  await onMessage(msg(205, '/start ref_100'));
+  await onMessage(msg(205, '/start ref_201')); // existing user can't be re-referred
+  await onMessage(msg(206, '/start ref_206')); // self-referral ignored
+  assert.equal(q1('SELECT referred_by FROM users WHERE id = 205').referred_by, 100);
+  assert.equal(q1('SELECT referred_by FROM users WHERE id = 206').referred_by, null);
+
+  // joining without the bot knowing yet: nothing
+  assert.equal(attempts(100), 1);
+  // 201 taps "I've joined" (twice), 202 via channel event, 203 via Mini App
+  fake.channelMembers = new Set([201, 202, 203, 204, 205]);
+  await onCallback({ id: 'cb', from: { id: 201 }, data: 'check_join' });
+  await onCallback({ id: 'cb', from: { id: 201 }, data: 'check_join' });
+  await onChatMember({ chat: { id: -1, username: CHANNEL_ID.slice(1) }, new_chat_member: { status: 'member', user: { id: 202 } } });
+  assert.equal(attempts(100), 1);
+  await me({}, ctx(203));
+  assert.equal(attempts(100), 2, '3rd qualified friend gives +1');
+  await Promise.all([me({}, ctx(204)), me({}, ctx(204)), me({}, ctx(205))]);
+  assert.equal(q1('SELECT ref_qualified_count c FROM users WHERE id = 100').c, 5);
+  assert.equal(attempts(100), 2);
+  assert.ok(fake.sent.some((c) => c.method === 'sendMessage' && c.params.chat_id === 100 && /earned 1 more mock/.test(c.params.text)));
+  assert.equal(q1("SELECT count(*) n FROM attempt_ledger WHERE user_id = 100 AND reason = 'referral_reward'").n, 1);
+});
+
+test('mini app referral via start_param, channel gate on start_mock', async () => {
+  await me({}, ctx(100));
+  const r = await me({}, ctx(300, { start_param: 'ref_100' }));
+  assert.equal(r.isMember, false);
+  assert.equal(r.referral.link, 'https://t.me/dev_speaking_bot?start=ref_300');
+  assert.equal(q1('SELECT referred_by FROM users WHERE id = 300').referred_by, 100);
+  await assert.rejects(startMock({}, ctx(300)), (e) => e.parameters.code === 'NOT_MEMBER');
+});
+
+async function record(sessionId, key, bytes = 6000, chunk = 4000) {
+  const b64 = Buffer.alloc(bytes, 7).toString('base64');
+  const parts = [];
+  for (let i = 0; i < b64.length; i += chunk) parts.push(b64.slice(i, i + chunk));
+  let res;
+  for (let i = 0; i < parts.length; i++) {
+    res = await uploadAnswer({ session: sessionId, key, index: i, total: parts.length, mime: 'audio/webm;codecs=opus', data: parts[i] }, ctx(500));
+  }
+  return res;
+}
+
+test('full mock: spend attempt, chunked uploads, background part grading, finish', async () => {
+  fake.channelMembers = new Set([500]);
+  await me({}, ctx(500));
+  const { session, test: t, answered } = await startMock({}, ctx(500));
+  assert.equal(attempts(500), 0);
+  assert.deepEqual(answered, []);
+  // resuming returns the same session and does not spend again
+  assert.equal((await startMock({}, ctx(500))).session.id, session.id);
+  assert.equal(attempts(500), 0);
+
+  for (const step of t.steps) {
+    const r = await record(session.id, step.key);
+    assert.equal(r.done, true);
+    if (['p1_1_3', 'p1_2_3', 'p2'].includes(step.key)) await gradePart({ session: session.id, part: step.part }, ctx(500));
+  }
+  assert.equal(calls.deepgram, 8);
+  assert.equal(q1('SELECT count(*) n FROM audio_chunks').n, 0, 'chunks are cleaned up');
+  // re-sending the last chunk of an answered question does not re-transcribe
+  assert.equal((await record(session.id, 'p3')).duplicate, true);
+  assert.equal(calls.deepgram, 8);
+
+  const done = await finishMock({ session: session.id }, ctx(500));
+  assert.equal(calls.openai, 4 + 1, '4 parts + summary, each graded once');
+  const r = done.result;
+  assert.equal(r.answers.length, 8);
+  // 12-word fake answers: the length guard caps fluency/task response well below the labels
+  assert.ok(r.score > 20 && r.score < 51, `score ${r.score}`);
+  assert.equal(r.parts.find((p) => p.part === '2').criteria.fluency_coherence, 'A1');
+  assert.equal(r.overall, 'Solid B1 performance.');
+  assert.ok(r.answers.every((a) => a.transcript && a.comment === 'fine'));
+  // second finish returns the stored result without regrading or messaging again
+  const sentBefore = fake.sent.filter((c) => c.method === 'sendMessage').length;
+  assert.equal((await finishMock({ session: session.id }, ctx(500))).result.score, r.score);
+  assert.equal(calls.openai, 5);
+  assert.equal(fake.sent.filter((c) => c.method === 'sendMessage').length, sentBefore);
+  assert.equal((await getResult({ id: session.id }, ctx(500))).result.score, r.score);
+  // other users can't read it
+  await assert.rejects(getResult({ id: session.id }, ctx(501)), (e) => e.parameters.code === 'NOT_FOUND');
+  // no attempts left
+  await assert.rejects(startMock({}, ctx(500)), (e) => e.parameters.code === 'NO_ATTEMPTS');
+});
+
+test('grading failure keeps the attempt and allows retry', async () => {
+  fake.channelMembers = new Set([500]);
+  await me({}, ctx(500));
+  const { session } = await startMock({}, ctx(500));
+  await record(session.id, 'p1_1_1');
+  const realFetch = fake.fetch;
+  fake.fetch = async (url, init) => (url.includes('openai') ? new Response('overloaded', { status: 503 }) : realFetch(url, init));
+  await assert.rejects(finishMock({ session: session.id }, ctx(500)));
+  assert.equal(q1('SELECT status FROM sessions WHERE id = ?', session.id).status, 'in_progress');
+  assert.equal(q1("SELECT count(*) n FROM part_grades WHERE status = 'running'").n, 0);
+  fake.fetch = realFetch;
+  const r = await finishMock({ session: session.id }, ctx(500));
+  assert.equal(r.result.parts.find((p) => p.part === '3').points, 0, 'unanswered part scores 0');
+});
+
+test('transcription failure keeps chunks so re-sending the last chunk retries', async () => {
+  fake.channelMembers = new Set([500]);
+  await me({}, ctx(500));
+  const { session } = await startMock({}, ctx(500));
+  const realFetch = fake.fetch;
+  fake.fetch = async (url, init) => (url.includes('deepgram') ? new Response('err', { status: 500 }) : realFetch(url, init));
+  await assert.rejects(record(session.id, 'p1_1_1'));
+  fake.fetch = realFetch;
+  const b64 = Buffer.alloc(6000, 7).toString('base64');
+  const r = await uploadAnswer({ session: session.id, key: 'p1_1_1', index: 1, total: 2, mime: 'audio/webm', data: b64.slice(4000) }, ctx(500));
+  assert.equal(r.done, true);
+});
+
+test('upload validation', async () => {
+  fake.channelMembers = new Set([500]);
+  await me({}, ctx(500));
+  const { session } = await startMock({}, ctx(500));
+  const bad = (input, code) => assert.rejects(uploadAnswer({ session: session.id, index: 0, total: 1, mime: 'audio/webm', data: 'AAAA', ...input }, ctx(500)), (e) => e.parameters.code === code);
+  await bad({ key: 'nope' }, 'BAD_STEP');
+  await bad({ key: 'p2', index: 3 }, 'BAD_REQUEST');
+  await bad({ key: 'p2', data: 'A'.repeat(400_001) }, 'TOO_LARGE');
+  await bad({ key: 'p2', data: '!!!!' }, 'BAD_REQUEST');
+  await assert.rejects(uploadAnswer({ session: 'x', key: 'p2', index: 0, total: 1, data: 'AAAA' }, ctx(500)), (e) => e.parameters.code === 'BAD_REQUEST');
+});
+
+test('admin commands: /setkey deletes the message, non-admins are ignored', async () => {
+  const { ADMIN_IDS } = await import('../tgcloud/lib/config.js');
+  const admin = ADMIN_IDS[0];
+  await onMessage(msg(admin, '/setkey openai sk-new-1234'));
+  assert.equal(q1("SELECT value FROM settings WHERE key = 'openai_api_key'").value, 'sk-new-1234');
+  assert.ok(fake.sent.some((c) => c.method === 'deleteMessage'));
+  await onMessage(msg(999, '/setkey openai sk-evil'));
+  assert.equal(q1("SELECT value FROM settings WHERE key = 'openai_api_key'").value, 'sk-new-1234');
+  await onMessage(msg(admin, '/setup https://app42.tgcloud.ai'));
+  assert.equal(q1("SELECT value FROM settings WHERE key = 'app_url'").value, 'https://app42.tgcloud.ai/');
+  assert.ok(fake.sent.some((c) => c.method === 'setChatMenuButton'));
+  await onMessage(msg(admin, '/grant 999 2'));
+  assert.equal(attempts(999), 3);
+});

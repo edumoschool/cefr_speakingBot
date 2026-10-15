@@ -1,0 +1,48 @@
+:root {
+  --app-hint: var(--ion-color-medium);
+  --app-ok: #16a34a;
+  --app-bad: #dc2626;
+}
+.hint { color: var(--app-hint); font-size: 13px; }
+.center-page { min-height: 75vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px; padding: 0 12px; }
+.big-emoji { font-size: 56px; }
+.attempts-num { font-size: 40px; font-weight: 800; line-height: 1; }
+ion-card .attempts-num, ion-card .score { color: var(--ion-text-color, #000); }
+.ref-link { display: block; margin-top: 8px; font-size: 12px; word-break: break-all; color: var(--app-hint); }
+.dots { display: flex; gap: 6px; margin: 10px 0 6px; }
+.dot { flex: 1; height: 8px; border-radius: 99px; background: var(--ion-color-step-150, #e5e7eb); }
+.dot.on { background: var(--app-ok); }
+
+/* Exam */
+.question { font-size: 20px; font-weight: 700; margin: 6px 0 10px; color: var(--ion-text-color); }
+.pics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+.pics.one { grid-template-columns: 1fr; }
+.pics img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 12px; }
+.cue li { font-weight: 600; margin: 6px 0; }
+.debate { border-radius: 14px; overflow: hidden; background: var(--ion-card-background); }
+.debate h3 { margin: 0; padding: 12px; text-align: center; font-size: 17px; }
+.debate .cols { display: grid; grid-template-columns: 1fr 1fr; }
+.debate .col { padding: 10px 12px; font-size: 14px; }
+.debate .col b { display: block; letter-spacing: .1em; font-size: 12px; margin-bottom: 4px; }
+.debate .for { background: rgba(22, 163, 74, .09); } .debate .for b { color: var(--app-ok); }
+.debate .against { background: rgba(220, 38, 38, .08); } .debate .against b { color: var(--app-bad); }
+.debate ul { margin: 0; padding-left: 16px; } .debate li { margin: 4px 0; }
+.timer { position: relative; width: 150px; height: 150px; margin: 18px auto 4px; }
+.timer svg { width: 150px; height: 150px; transform: rotate(-90deg); }
+.timer .bg { fill: none; stroke: var(--ion-color-step-150, #e5e7eb); stroke-width: 10; }
+.timer .fg { fill: none; stroke: var(--ion-color-primary); stroke-width: 10; stroke-linecap: round; stroke-dasharray: 326.7; transition: stroke-dashoffset .25s linear; }
+.timer.rec .fg { stroke: var(--app-bad); }
+.timer .phase { position: absolute; top: 44px; width: 100%; text-align: center; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--app-hint); }
+.timer.rec .phase { color: var(--app-bad); }
+.timer.rec .phase::before { content: '● '; animation: blink 1s infinite; }
+@keyframes blink { 50% { opacity: .2; } }
+.timer .time { position: absolute; top: 60px; width: 100%; text-align: center; font-size: 32px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ion-text-color); }
+
+/* Result */
+.score { font-size: 56px; font-weight: 800; line-height: 1; color: var(--ion-text-color); }
+.score small { font-size: 20px; color: var(--app-hint); }
+.fix { border-left: 3px solid var(--app-bad); padding: 4px 10px; margin: 10px 0; font-size: 14px; }
+.fix .orig { text-decoration: line-through; color: var(--app-hint); }
+.fix .corr { color: var(--app-ok); font-weight: 600; }
+.transcript { background: var(--ion-background-color); border-radius: 10px; padding: 10px; font-size: 14px; white-space: pre-wrap; margin: 6px 0; }
+.transcript.model { border-left: 3px solid var(--app-ok); }
