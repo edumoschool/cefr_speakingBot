@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/**/*.ts": { "maxDuration": 60, "includeFiles": "data/**" },
+    "api/mock/finish.ts": { "maxDuration": 180, "includeFiles": "data/**" }
+  },
+  "headers": [
+    { "source": "/img/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] }
+  ]
+}

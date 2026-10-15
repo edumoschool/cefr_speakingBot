@@ -1,0 +1,32 @@
+{
+  "name": "cefr-speaking-bot",
+  "version": "1.0.0",
+  "description": "Multilevel (CEFR) speaking mock exam \u2014 Telegram Mini App on Vercel serverless with OpenAI + Deepgram assessment",
+  "scripts": {
+    "dev": "tsx scripts/dev-server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "db:migrate": "tsx scripts/migrate.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/edumoschool/cefr_speakingBot.git"
+  },
+  "dependencies": {
+    "@deepgram/sdk": "^5.15.0",
+    "@neondatabase/serverless": "^1.2.0",
+    "openai": "^7.34.0",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  },
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  }
+}

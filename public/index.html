@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Multilevel Speaking Mock</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main id="app">
+    <section id="screen-loading" class="screen active">
+      <div class="center"><div class="spinner"></div><p class="muted">Loading…</p></div>
+    </section>
+
+    <section id="screen-error" class="screen">
+      <div class="center">
+        <div class="big-emoji">⚠️</div>
+        <p id="error-text">Something went wrong.</p>
+        <button class="btn" data-action="reload">Try again</button>
+      </div>
+    </section>
+
+    <section id="screen-gate" class="screen">
+      <div class="center">
+        <div class="big-emoji">📢</div>
+        <h1>Join our channel</h1>
+        <p class="muted">The speaking mock is free for members of our Telegram channel. Join, then come back and tap “I’ve joined”.</p>
+        <button class="btn" data-action="open-channel">Join the channel</button>
+        <button class="btn secondary" data-action="reload">I’ve joined</button>
+      </div>
+    </section>
+
+    <section id="screen-home" class="screen">
+      <header class="hero">
+        <p class="eyebrow">Multilevel · CEFR</p>
+        <h1>Speaking Mock</h1>
+        <p class="muted" id="hello"></p>
+      </header>
+
+      <div class="card attempts">
+        <div>
+          <div class="label">Mock attempts</div>
+          <div class="attempts-num" id="attempts">0</div>
+        </div>
+        <button class="btn" id="start-btn" data-action="start">Start mock</button>
+      </div>
+      <p class="hint" id="start-hint"></p>
+
+      <div class="card">
+        <div class="card-title">👥 Invite friends, get free mocks</div>
+        <p class="muted small" id="ref-rule"></p>
+        <div class="dots" id="ref-dots"></div>
+        <p class="small" id="ref-count"></p>
+        <div class="row">
+          <button class="btn" data-action="share">Share link</button>
+          <button class="btn secondary" data-action="copy">Copy</button>
+        </div>
+        <code class="ref-link" id="ref-link"></code>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📚 Exam format</div>
+        <ul class="format">
+          <li><b>Part 1.1</b> · 3 personal questions · 30 s each</li>
+          <li><b>Part 1.2</b> · compare 2 pictures (45 s) + 2 questions (30 s)</li>
+          <li><b>Part 2</b> · cue card · 1 min prep · 2 min talk</li>
+          <li><b>Part 3</b> · for/against debate · 1 min prep · 2 min talk</li>
+        </ul>
+        <button class="btn ghost" data-action="vocab">Topic vocabulary (EN · UZ · RU)</button>
+      </div>
+
+      <div class="card" id="history-card" hidden>
+        <div class="card-title">🗂 My results</div>
+        <div id="history"></div>
+      </div>
+    </section>
+
+    <section id="screen-ready" class="screen">
+      <div class="center">
+        <div class="big-emoji">🎙️</div>
+        <h1 id="ready-title">Ready?</h1>
+        <p class="muted">Find a quiet place. Each question has a short preparation time, then recording starts automatically with a beep. Speak until the timer ends, or tap “Finish answer”.</p>
+        <label class="toggle"><input type="checkbox" id="tts-toggle" checked /> Read questions aloud</label>
+        <button class="btn" data-action="begin">Allow microphone &amp; begin</button>
+        <button class="btn ghost" data-action="home">Back</button>
+      </div>
+    </section>
+
+    <section id="screen-exam" class="screen">
+      <div class="exam-top">
+        <span class="part-pill" id="part-label">Part 1.1</span>
+        <span class="muted small" id="step-counter">1 / 8</span>
+      </div>
+      <div class="progress"><div id="progress-bar"></div></div>
+
+      <div id="exam-body"></div>
+
+      <div class="timer-wrap">
+        <div class="phase" id="phase">Preparation</div>
+        <svg class="ring" viewBox="0 0 120 120">
+          <circle class="ring-bg" cx="60" cy="60" r="52" />
+          <circle class="ring-fg" id="ring" cx="60" cy="60" r="52" />
+        </svg>
+        <div class="time" id="time">0:00</div>
+      </div>
+      <div class="exam-actions">
+        <button class="btn" id="exam-btn" data-action="exam-next">Start speaking now</button>
+      </div>
+      <p class="hint" id="upload-status"></p>
+    </section>
+
+    <section id="screen-grading" class="screen">
+      <div class="center">
+        <div class="spinner"></div>
+        <h1>Assessing your speaking…</h1>
+        <p class="muted" id="grading-text">Uploading your answers.</p>
+      </div>
+    </section>
+
+    <section id="screen-result" class="screen">
+      <div id="result"></div>
+      <button class="btn" data-action="home">Back to home</button>
+    </section>
+
+    <section id="screen-vocab" class="screen">
+      <div class="exam-top"><h1>Topic vocabulary</h1></div>
+      <div id="vocab"></div>
+      <button class="btn" data-action="home">Back</button>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

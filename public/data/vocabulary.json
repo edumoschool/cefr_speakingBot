@@ -1,0 +1,1027 @@
+[
+ {
+  "part": 1,
+  "title": "University Exam",
+  "words": [
+   {
+    "en": "final-year student",
+    "uz": "oxirgi kurs talabasi",
+    "ru": "студент последнего курса"
+   },
+   {
+    "en": "economics",
+    "uz": "iqtisodiyot",
+    "ru": "экономика"
+   },
+   {
+    "en": "petition",
+    "uz": "petitsiya, murojaatnoma",
+    "ru": "петиция"
+   },
+   {
+    "en": "impossible",
+    "uz": "imkonsiz",
+    "ru": "невозможный"
+   },
+   {
+    "en": "complain",
+    "uz": "shikoyat qilmoq",
+    "ru": "жаловаться"
+   },
+   {
+    "en": "online petition",
+    "uz": "onlayn petitsiya",
+    "ru": "онлайн-петиция"
+   },
+   {
+    "en": "look into",
+    "uz": "tekshirmoq, o‘rganib chiqmoq",
+    "ru": "расследовать, изучить"
+   },
+   {
+    "en": "contain",
+    "uz": "o‘z ichiga olmoq",
+    "ru": "содержать"
+   },
+   {
+    "en": "topic",
+    "uz": "mavzu",
+    "ru": "тема"
+   },
+   {
+    "en": "course",
+    "uz": "o‘quv kursi",
+    "ru": "курс обучения"
+   },
+   {
+    "en": "difficult maths",
+    "uz": "murakkab matematika",
+    "ru": "сложная математика"
+   },
+   {
+    "en": "lecturer",
+    "uz": "o‘qituvchi, lektor",
+    "ru": "преподаватель"
+   },
+   {
+    "en": "affect",
+    "uz": "ta’sir qilmoq",
+    "ru": "влиять"
+   },
+   {
+    "en": "degree",
+    "uz": "daraja, diplom",
+    "ru": "диплом, степень"
+   },
+   {
+    "en": "department",
+    "uz": "bo‘lim, kafedra",
+    "ru": "кафедра"
+   },
+   {
+    "en": "fair",
+    "uz": "adolatli",
+    "ru": "справедливый"
+   },
+   {
+    "en": "level",
+    "uz": "daraja",
+    "ru": "уровень"
+   },
+   {
+    "en": "provided",
+    "uz": "taqdim etilgan",
+    "ru": "предоставленный"
+   },
+   {
+    "en": "further reading",
+    "uz": "qo‘shimcha o‘qish materiallari",
+    "ru": "дополнительное чтение"
+   },
+   {
+    "en": "term",
+    "uz": "atama",
+    "ru": "термин"
+   },
+   {
+    "en": "explain",
+    "uz": "tushuntirmoq",
+    "ru": "объяснять"
+   },
+   {
+    "en": "result",
+    "uz": "natija",
+    "ru": "результат"
+   }
+  ]
+ },
+ {
+  "part": 2,
+  "title": "Travel & Tours",
+  "words": [
+   {
+    "en": "experience",
+    "uz": "boshdan kechirmoq / tajriba",
+    "ru": "испытывать / опыт"
+   },
+   {
+    "en": "nature",
+    "uz": "tabiat",
+    "ru": "природа"
+   },
+   {
+    "en": "in its true form",
+    "uz": "asl holida",
+    "ru": "в естественном виде"
+   },
+   {
+    "en": "escape",
+    "uz": "qochib ketmoq, dam olish uchun ketmoq",
+    "ru": "сбежать, уехать"
+   },
+   {
+    "en": "island",
+    "uz": "orol",
+    "ru": "остров"
+   },
+   {
+    "en": "virtual",
+    "uz": "virtual",
+    "ru": "виртуальный"
+   },
+   {
+    "en": "ancient history",
+    "uz": "qadimgi tarix",
+    "ru": "древняя история"
+   },
+   {
+    "en": "romantic",
+    "uz": "romantik",
+    "ru": "романтический"
+   },
+   {
+    "en": "conquer",
+    "uz": "zabt etmoq",
+    "ru": "покорять"
+   },
+   {
+    "en": "peak",
+    "uz": "cho‘qqi",
+    "ru": "вершина"
+   },
+   {
+    "en": "adventurous",
+    "uz": "sarguzashtli",
+    "ru": "приключенческий"
+   },
+   {
+    "en": "journey",
+    "uz": "sayohat",
+    "ru": "путешествие"
+   },
+   {
+    "en": "historical",
+    "uz": "tarixiy",
+    "ru": "исторический"
+   },
+   {
+    "en": "local dishes",
+    "uz": "mahalliy taomlar",
+    "ru": "местные блюда"
+   },
+   {
+    "en": "relaxation",
+    "uz": "dam olish",
+    "ru": "отдых, расслабление"
+   },
+   {
+    "en": "escapade",
+    "uz": "qisqa sarguzashtli sayohat",
+    "ru": "приключение, поездка"
+   },
+   {
+    "en": "boat trip",
+    "uz": "qayiq sayohati",
+    "ru": "поездка на лодке"
+   },
+   {
+    "en": "natural beauty",
+    "uz": "tabiiy go‘zallik",
+    "ru": "природная красота"
+   },
+   {
+    "en": "destination",
+    "uz": "boriladigan joy",
+    "ru": "место назначения"
+   },
+   {
+    "en": "sightseeing",
+    "uz": "diqqatga sazovor joylarni tomosha qilish",
+    "ru": "осмотр достопримечательностей"
+   },
+   {
+    "en": "breathtaking",
+    "uz": "hayratlanarli, juda chiroyli",
+    "ru": "захватывающий дух"
+   },
+   {
+    "en": "explore",
+    "uz": "kashf qilmoq",
+    "ru": "исследовать"
+   },
+   {
+    "en": "attraction",
+    "uz": "diqqatga sazovor joy",
+    "ru": "достопримечательность"
+   }
+  ]
+ },
+ {
+  "part": 3,
+  "title": "Locomotives & Railways",
+  "words": [
+   {
+    "en": "locomotive",
+    "uz": "lokomotiv",
+    "ru": "локомотив"
+   },
+   {
+    "en": "invention",
+    "uz": "ixtiro",
+    "ru": "изобретение"
+   },
+   {
+    "en": "breakthrough",
+    "uz": "katta yutuq, burilish",
+    "ru": "прорыв"
+   },
+   {
+    "en": "development",
+    "uz": "rivojlanish",
+    "ru": "развитие"
+   },
+   {
+    "en": "railway system",
+    "uz": "temiryo‘l tizimi",
+    "ru": "железнодорожная система"
+   },
+   {
+    "en": "revolutionary",
+    "uz": "inqilobiy",
+    "ru": "революционный"
+   },
+   {
+    "en": "steam locomotive",
+    "uz": "bug‘ lokomotivi",
+    "ru": "паровоз"
+   },
+   {
+    "en": "fuel",
+    "uz": "yoqilg‘i",
+    "ru": "топливо"
+   },
+   {
+    "en": "coal",
+    "uz": "ko‘mir",
+    "ru": "уголь"
+   },
+   {
+    "en": "boiler",
+    "uz": "qozon",
+    "ru": "котёл"
+   },
+   {
+    "en": "drive",
+    "uz": "harakatga keltirmoq",
+    "ru": "приводить в движение"
+   },
+   {
+    "en": "engine",
+    "uz": "dvigatel",
+    "ru": "двигатель"
+   },
+   {
+    "en": "gradually",
+    "uz": "asta-sekin",
+    "ru": "постепенно"
+   },
+   {
+    "en": "replace",
+    "uz": "almashtirmoq",
+    "ru": "заменять"
+   },
+   {
+    "en": "diesel",
+    "uz": "dizel",
+    "ru": "дизель"
+   },
+   {
+    "en": "long-distance",
+    "uz": "uzoq masofali",
+    "ru": "дальнего следования"
+   },
+   {
+    "en": "passenger train",
+    "uz": "yo‘lovchi poyezdi",
+    "ru": "пассажирский поезд"
+   },
+   {
+    "en": "cover",
+    "uz": "masofani bosib o‘tmoq",
+    "ru": "покрывать, преодолевать"
+   },
+   {
+    "en": "luxurious",
+    "uz": "hashamatli",
+    "ru": "роскошный"
+   },
+   {
+    "en": "freight",
+    "uz": "yuk",
+    "ru": "груз"
+   },
+   {
+    "en": "freight train",
+    "uz": "yuk poyezdi",
+    "ru": "грузовой поезд"
+   },
+   {
+    "en": "transport",
+    "uz": "tashimoq",
+    "ru": "перевозить"
+   },
+   {
+    "en": "transportation",
+    "uz": "tashish",
+    "ru": "перевозка"
+   },
+   {
+    "en": "refrigeration",
+    "uz": "sovutish tizimi",
+    "ru": "охлаждение"
+   },
+   {
+    "en": "preserve",
+    "uz": "saqlab qolmoq",
+    "ru": "сохранять"
+   },
+   {
+    "en": "overnight train",
+    "uz": "tungi poyezd",
+    "ru": "ночной поезд"
+   },
+   {
+    "en": "air travel",
+    "uz": "havo transporti",
+    "ru": "авиаперелёт"
+   },
+   {
+    "en": "destination",
+    "uz": "manzil",
+    "ru": "пункт назначения"
+   },
+   {
+    "en": "cabin",
+    "uz": "kupe",
+    "ru": "купе"
+   },
+   {
+    "en": "bedding",
+    "uz": "yotoq anjomlari",
+    "ru": "постельные принадлежности"
+   },
+   {
+    "en": "attendant",
+    "uz": "xizmatchi",
+    "ru": "обслуживающий персонал"
+   },
+   {
+    "en": "literature",
+    "uz": "adabiyot",
+    "ru": "литература"
+   },
+   {
+    "en": "heroine",
+    "uz": "bosh qahramon ayol",
+    "ru": "героиня"
+   },
+   {
+    "en": "classic",
+    "uz": "klassik asar",
+    "ru": "классика"
+   },
+   {
+    "en": "optimism",
+    "uz": "optimizm",
+    "ru": "оптимизм"
+   },
+   {
+    "en": "high-speed railway",
+    "uz": "tezyurar temiryo‘l",
+    "ru": "высокоскоростная железная дорога"
+   },
+   {
+    "en": "spacious",
+    "uz": "keng",
+    "ru": "просторный"
+   },
+   {
+    "en": "entertainment",
+    "uz": "ko‘ngilochar dastur",
+    "ru": "развлечения"
+   },
+   {
+    "en": "efficient",
+    "uz": "samarali",
+    "ru": "эффективный"
+   },
+   {
+    "en": "reduce",
+    "uz": "kamaytirmoq",
+    "ru": "сокращать"
+   },
+   {
+    "en": "environmental impact",
+    "uz": "atrof-muhitga ta’sir",
+    "ru": "воздействие на окружающую среду"
+   }
+  ]
+ },
+ {
+  "part": 4,
+  "title": "Deserts",
+  "words": [
+   {
+    "en": "desert",
+    "uz": "cho‘l",
+    "ru": "пустыня"
+   },
+   {
+    "en": "rainfall",
+    "uz": "yog‘ingarchilik",
+    "ru": "осадки"
+   },
+   {
+    "en": "rocky",
+    "uz": "qoyali, toshloq",
+    "ru": "каменистый"
+   },
+   {
+    "en": "sandy",
+    "uz": "qumli",
+    "ru": "песчаный"
+   },
+   {
+    "en": "hot zone",
+    "uz": "issiq hudud",
+    "ru": "жаркая зона"
+   },
+   {
+    "en": "survive",
+    "uz": "omon qolmoq",
+    "ru": "выживать"
+   },
+   {
+    "en": "beneath",
+    "uz": "ostida",
+    "ru": "под"
+   },
+   {
+    "en": "reptile",
+    "uz": "sudralib yuruvchi",
+    "ru": "рептилия"
+   },
+   {
+    "en": "insect",
+    "uz": "hasharot",
+    "ru": "насекомое"
+   },
+   {
+    "en": "mammal",
+    "uz": "sutemizuvchi",
+    "ru": "млекопитающее"
+   },
+   {
+    "en": "adjust to",
+    "uz": "moslashmoq",
+    "ru": "адаптироваться к"
+   },
+   {
+    "en": "climate",
+    "uz": "iqlim",
+    "ru": "климат"
+   },
+   {
+    "en": "particle",
+    "uz": "zarracha",
+    "ru": "частица"
+   },
+   {
+    "en": "wear off",
+    "uz": "yemirilmoq",
+    "ru": "истираться"
+   },
+   {
+    "en": "surface",
+    "uz": "yuza",
+    "ru": "поверхность"
+   },
+   {
+    "en": "oasis",
+    "uz": "voha",
+    "ru": "оазис"
+   },
+   {
+    "en": "supply",
+    "uz": "ta’minot, zaxira",
+    "ru": "запас, снабжение"
+   },
+   {
+    "en": "deep well",
+    "uz": "chuqur quduq",
+    "ru": "глубокий колодец"
+   },
+   {
+    "en": "resident",
+    "uz": "yashovchi",
+    "ru": "житель"
+   },
+   {
+    "en": "nomad",
+    "uz": "ko‘chmanchi",
+    "ru": "кочевник"
+   },
+   {
+    "en": "wander",
+    "uz": "kezib yurmoq",
+    "ru": "странствовать"
+   },
+   {
+    "en": "possession",
+    "uz": "mol-mulk",
+    "ru": "имущество"
+   },
+   {
+    "en": "shade",
+    "uz": "soya",
+    "ru": "тень"
+   },
+   {
+    "en": "burrow",
+    "uz": "in, yerosti uyasi",
+    "ru": "нора"
+   },
+   {
+    "en": "moisture",
+    "uz": "namlik",
+    "ru": "влага"
+   },
+   {
+    "en": "stem",
+    "uz": "poya",
+    "ru": "стебель"
+   },
+   {
+    "en": "root",
+    "uz": "ildiz",
+    "ru": "корень"
+   },
+   {
+    "en": "store water",
+    "uz": "suvni saqlamoq",
+    "ru": "запасать воду"
+   },
+   {
+    "en": "dormant",
+    "uz": "faoliyatsiz, uyqu holatidagi",
+    "ru": "находящийся в состоянии покоя"
+   },
+   {
+    "en": "sprout",
+    "uz": "unib chiqmoq",
+    "ru": "прорастать"
+   },
+   {
+    "en": "drought",
+    "uz": "qurg‘oqchilik",
+    "ru": "засуха"
+   },
+   {
+    "en": "grazing",
+    "uz": "chorva boqish",
+    "ru": "выпас скота"
+   },
+   {
+    "en": "overgraze",
+    "uz": "haddan tashqari boqmoq",
+    "ru": "чрезмерно выпасать"
+   },
+   {
+    "en": "bare",
+    "uz": "o‘simliksiz, yalang‘och",
+    "ru": "оголённый"
+   },
+   {
+    "en": "mining",
+    "uz": "konchilik",
+    "ru": "добыча полезных ископаемых"
+   },
+   {
+    "en": "preserve",
+    "uz": "saqlamoq",
+    "ru": "сохранять"
+   },
+   {
+    "en": "soil",
+    "uz": "tuproq",
+    "ru": "почва"
+   },
+   {
+    "en": "desertification",
+    "uz": "cho‘llanish",
+    "ru": "опустынивание"
+   },
+   {
+    "en": "migrate",
+    "uz": "ko‘chib o‘tmoq",
+    "ru": "мигрировать"
+   },
+   {
+    "en": "adapt",
+    "uz": "moslashmoq",
+    "ru": "адаптироваться"
+   },
+   {
+    "en": "withstand",
+    "uz": "bardosh bermoq",
+    "ru": "выдерживать"
+   },
+   {
+    "en": "dryness",
+    "uz": "quruqlik",
+    "ru": "сухость"
+   }
+  ]
+ },
+ {
+  "part": 5,
+  "title": "The History Of Salt",
+  "words": [
+   {
+    "en": "plentiful",
+    "uz": "mo‘l-ko‘l",
+    "ru": "обильный"
+   },
+   {
+    "en": "take for granted",
+    "uz": "odatiy deb qabul qilmoq",
+    "ru": "воспринимать как должное"
+   },
+   {
+    "en": "chemical",
+    "uz": "kimyoviy",
+    "ru": "химический"
+   },
+   {
+    "en": "combination",
+    "uz": "birikma",
+    "ru": "соединение"
+   },
+   {
+    "en": "sodium",
+    "uz": "natriy",
+    "ru": "натрий"
+   },
+   {
+    "en": "chloride",
+    "uz": "xlorid",
+    "ru": "хлорид"
+   },
+   {
+    "en": "molecule",
+    "uz": "molekula",
+    "ru": "молекула"
+   },
+   {
+    "en": "deposit",
+    "uz": "kon, qatlam",
+    "ru": "залежь"
+   },
+   {
+    "en": "essential",
+    "uz": "muhim, zarur",
+    "ru": "необходимый"
+   },
+   {
+    "en": "mineral",
+    "uz": "mineral",
+    "ru": "минерал"
+   },
+   {
+    "en": "function",
+    "uz": "faoliyat ko‘rsatmoq",
+    "ru": "функционировать"
+   },
+   {
+    "en": "concentration",
+    "uz": "konsentratsiya",
+    "ru": "концентрация"
+   },
+   {
+    "en": "regulation",
+    "uz": "tartibga solish",
+    "ru": "регулирование"
+   },
+   {
+    "en": "body fluid",
+    "uz": "tana suyuqligi",
+    "ru": "жидкость организма"
+   },
+   {
+    "en": "commercial",
+    "uz": "tijoriy",
+    "ru": "коммерческий"
+   },
+   {
+    "en": "application",
+    "uz": "qo‘llanilish sohasi",
+    "ru": "применение"
+   },
+   {
+    "en": "manufacturing",
+    "uz": "ishlab chiqarish",
+    "ru": "производство"
+   },
+   {
+    "en": "pulp",
+    "uz": "qog‘oz massasi",
+    "ru": "целлюлоза"
+   },
+   {
+    "en": "textile",
+    "uz": "to‘qimachilik",
+    "ru": "текстиль"
+   },
+   {
+    "en": "detergent",
+    "uz": "yuvish vositasi",
+    "ru": "моющее средство"
+   },
+   {
+    "en": "influential",
+    "uz": "ta’sirli",
+    "ru": "влиятельный"
+   },
+   {
+    "en": "civilization",
+    "uz": "sivilizatsiya",
+    "ru": "цивилизация"
+   },
+   {
+    "en": "economic",
+    "uz": "iqtisodiy",
+    "ru": "экономический"
+   },
+   {
+    "en": "religious",
+    "uz": "diniy",
+    "ru": "религиозный"
+   },
+   {
+    "en": "political",
+    "uz": "siyosiy",
+    "ru": "политический"
+   },
+   {
+    "en": "development",
+    "uz": "rivojlanish",
+    "ru": "развитие"
+   },
+   {
+    "en": "superstition",
+    "uz": "xurofot",
+    "ru": "суеверие"
+   },
+   {
+    "en": "folklore",
+    "uz": "xalq og‘zaki ijodi",
+    "ru": "фольклор"
+   },
+   {
+    "en": "warfare",
+    "uz": "urush olib borish",
+    "ru": "военные действия"
+   },
+   {
+    "en": "currency",
+    "uz": "valyuta, pul vositasi",
+    "ru": "валюта, денежное средство"
+   },
+   {
+    "en": "precious",
+    "uz": "qimmatbaho",
+    "ru": "драгоценный"
+   },
+   {
+    "en": "portable",
+    "uz": "olib yurishga qulay",
+    "ru": "переносной"
+   },
+   {
+    "en": "commodity",
+    "uz": "tovar",
+    "ru": "товар"
+   },
+   {
+    "en": "cornerstone",
+    "uz": "asosiy poydevor",
+    "ru": "краеугольный камень"
+   },
+   {
+    "en": "conjecture",
+    "uz": "taxmin qilmoq",
+    "ru": "предполагать"
+   },
+   {
+    "en": "emperor",
+    "uz": "imperator",
+    "ru": "император"
+   },
+   {
+    "en": "levy",
+    "uz": "soliq undirmoq",
+    "ru": "взимать"
+   },
+   {
+    "en": "tax",
+    "uz": "soliq",
+    "ru": "налог"
+   },
+   {
+    "en": "barter",
+    "uz": "ayirboshlamoq",
+    "ru": "обменивать"
+   },
+   {
+    "en": "trader",
+    "uz": "savdogar",
+    "ru": "торговец"
+   },
+   {
+    "en": "merchant",
+    "uz": "savdogar",
+    "ru": "купец"
+   },
+   {
+    "en": "slave trader",
+    "uz": "qul savdogari",
+    "ru": "работорговец"
+   },
+   {
+    "en": "legionnaire",
+    "uz": "legioner",
+    "ru": "легионер"
+   },
+   {
+    "en": "salary",
+    "uz": "maosh",
+    "ru": "зарплата"
+   },
+   {
+    "en": "scholar",
+    "uz": "olim",
+    "ru": "учёный"
+   },
+   {
+    "en": "conquest",
+    "uz": "zabt etish",
+    "ru": "завоевание"
+   },
+   {
+    "en": "revolution",
+    "uz": "inqilob",
+    "ru": "революция"
+   },
+   {
+    "en": "re-establish",
+    "uz": "qayta tiklamoq",
+    "ru": "восстановить"
+   },
+   {
+    "en": "monarchy",
+    "uz": "monarxiya",
+    "ru": "монархия"
+   },
+   {
+    "en": "smuggling",
+    "uz": "kontrabanda",
+    "ru": "контрабанда"
+   },
+   {
+    "en": "arrest",
+    "uz": "hibsga olmoq",
+    "ru": "арестовывать"
+   },
+   {
+    "en": "protest",
+    "uz": "norozilik bildirmoq",
+    "ru": "протестовать"
+   },
+   {
+    "en": "untaxed",
+    "uz": "soliqqa tortilmagan",
+    "ru": "необлагаемый налогом"
+   },
+   {
+    "en": "ritual",
+    "uz": "marosim",
+    "ru": "ритуал"
+   },
+   {
+    "en": "consecrate",
+    "uz": "muqaddaslashtirmoq",
+    "ru": "освящать"
+   },
+   {
+    "en": "repel",
+    "uz": "haydamoq, qaytarmoq",
+    "ru": "отпугивать"
+   },
+   {
+    "en": "purify",
+    "uz": "poklamoq",
+    "ru": "очищать"
+   },
+   {
+    "en": "customary",
+    "uz": "odat tusiga kirgan",
+    "ru": "обычный, традиционный"
+   },
+   {
+    "en": "elaborate",
+    "uz": "murakkab, puxta",
+    "ru": "сложный, тщательно разработанный"
+   },
+   {
+    "en": "restriction",
+    "uz": "cheklov",
+    "ru": "ограничение"
+   },
+   {
+    "en": "deficiency",
+    "uz": "yetishmovchilik",
+    "ru": "дефицит"
+   },
+   {
+    "en": "inadequate",
+    "uz": "yetarli bo‘lmagan",
+    "ru": "недостаточный"
+   },
+   {
+    "en": "resistance",
+    "uz": "qarshilik",
+    "ru": "сопротивляемость"
+   },
+   {
+    "en": "disease",
+    "uz": "kasallik",
+    "ru": "болезнь"
+   },
+   {
+    "en": "revenue",
+    "uz": "daromad, tushum",
+    "ru": "доход"
+   },
+   {
+    "en": "construction",
+    "uz": "qurilish",
+    "ru": "строительство"
+   },
+   {
+    "en": "engineering marvel",
+    "uz": "muhandislik mo‘jizasi",
+    "ru": "инженерное чудо"
+   },
+   {
+    "en": "black market",
+    "uz": "qora bozor",
+    "ru": "чёрный рынок"
+   },
+   {
+    "en": "valuable",
+    "uz": "qimmatli",
+    "ru": "ценный"
+   },
+   {
+    "en": "harvest",
+    "uz": "yig‘ib olmoq / qazib olmoq",
+    "ru": "собирать / добывать"
+   },
+   {
+    "en": "precious mineral",
+    "uz": "qimmatbaho mineral",
+    "ru": "ценный минерал"
+   }
+  ]
+ }
+]
