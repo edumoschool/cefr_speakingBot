@@ -63,20 +63,33 @@ const PART_SCHEMA = obj({
 
 const SUMMARY_SCHEMA = obj({ overall_feedback: str, strengths: arr(str), priorities: arr(str) });
 
+// gpt-5 / o-series models take reasoning_effort; others (gpt-4o, gpt-4.1…) reject it
+// with a 400. When that happens the request is repeated without it, and later
+// calls in this isolate skip it straight away.
+let sendReasoningEffort = true;
+
 async function chat(system, user, schemaName, schema, lang = 'en') {
   system += languageRule(lang);
   const key = ENV.OPENAI_API_KEY;
   if (!key) throw new Error('OPENAI_API_KEY is not set in .env');
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: OPENAI_MODEL,
-      reasoning_effort: 'low',
-      messages: [{ role: 'system', content: system }, { role: 'user', content: JSON.stringify(user) }],
-      response_format: { type: 'json_schema', json_schema: { name: schemaName, strict: true, schema } },
-    }),
-  });
+  const request = (withEffort) =>
+    fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        ...(withEffort ? { reasoning_effort: 'low' } : {}),
+        messages: [{ role: 'system', content: system }, { role: 'user', content: JSON.stringify(user) }],
+        response_format: { type: 'json_schema', json_schema: { name: schemaName, strict: true, schema } },
+      }),
+    });
+  let res = await request(sendReasoningEffort);
+  if (!res.ok && res.status === 400 && sendReasoningEffort) {
+    const text = await res.text();
+    if (!text.includes('reasoning_effort')) throw new Error(`OpenAI 400: ${text.slice(0, 300)}`);
+    sendReasoningEffort = false;
+    res = await request(false);
+  }
   if (!res.ok) throw new Error(`OpenAI ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const data = await res.json();
   const content = data?.choices?.[0]?.message?.content;

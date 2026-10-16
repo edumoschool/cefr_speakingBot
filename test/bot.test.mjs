@@ -679,3 +679,31 @@ test('problems: a failing OpenAI call tells the admin why, once, and shows in /a
     fake.fetch = realFetch;
   }
 });
+
+test('grading works with models that reject reasoning_effort (gpt-4o, gpt-4.1)', async () => {
+  const realFetch = fake.fetch;
+  const bodies = [];
+  fake.fetch = async (url, init) => {
+    if (String(url).includes('openai.com')) {
+      const body = JSON.parse(init.body);
+      bodies.push(body);
+      if ('reasoning_effort' in body) {
+        return new Response('{"error":{"message":"Unrecognized request argument supplied: reasoning_effort","type":"invalid_request_error"}}', { status: 400 });
+      }
+    }
+    return realFetch(url, init);
+  };
+  try {
+    fake.channelMembers = new Set([703]);
+    await onMessage(msg(703, '/start'));
+    await onMessage(msg(703, '/voice'));
+    for (let i = 0; i < 8; i++) {
+      fake.files.set(`r${i}`, new Uint8Array(6000).fill(i + 1));
+      await onMessage(voiceMsg(703, `r${i}`, 20, 980 + i));
+    }
+    assert.equal(q1('SELECT status FROM sessions WHERE user_id = 703').status, 'done');
+    assert.equal(bodies.filter((b) => 'reasoning_effort' in b).length, 1, 'tried once, then never again');
+  } finally {
+    fake.fetch = realFetch;
+  }
+});
