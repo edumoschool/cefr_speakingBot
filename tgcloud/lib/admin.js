@@ -10,6 +10,7 @@ import { boardText } from './botui.js';
 import { tr } from './texts.js';
 import { explain, lastProblem } from './alerts.js';
 import { escapeHtml } from './util.js';
+import { giveTests, studentCard, studentsPage } from './admin-users.js';
 
 export const isAdmin = (id) => ADMIN_IDS.includes(id);
 
@@ -40,7 +41,7 @@ async function panel() {
         [{ text: '📊 Statistics', callback_data: 'adm:stats' }],
         [{ text: '🏆 Post top speakers to the channel', callback_data: 'adm:board' }],
         [{ text: pay ? '⭐ Turn payments OFF' : '⭐ Turn payments ON', callback_data: 'adm:pay' }],
-        [{ text: '🎁 How to give a student free tests', callback_data: 'adm:grant' }],
+        [{ text: '👥 Students · give free tests', callback_data: 'adm:users:0' }],
         [{ text: '🔄 Refresh', callback_data: 'adm:panel' }],
       ],
     },
@@ -80,6 +81,24 @@ export async function onAdminButton(query) {
   // Typed commands reuse these actions without a button tap to answer.
   const answer = (text) => (query.id ? api.answerCallbackQuery({ callback_query_id: query.id, text }) : text && api.sendMessage({ chat_id, text }));
 
+  // Students list → card → give tests: all redraw this one message.
+  if (action.startsWith('users:')) {
+    const [, page, ...q] = action.split(':');
+    await answer();
+    return redraw(chat_id, message_id, await studentsPage(Number(page) || 0, q.join(':')));
+  }
+  if (action.startsWith('u:')) {
+    const [, id, page] = action.split(':').map(Number);
+    await answer();
+    return redraw(chat_id, message_id, await studentCard(id, page || 0));
+  }
+  if (action.startsWith('g:')) {
+    const [, id, delta, page] = action.split(':').map(Number);
+    if (!id || !Number.isInteger(delta) || !delta || Math.abs(delta) > 50) return answer();
+    await answer(await giveTests(id, delta));
+    return redraw(chat_id, message_id, await studentCard(id, page || 0));
+  }
+
   if (action === 'stats') {
     await answer();
     return api.sendMessage({ chat_id, parse_mode: 'HTML', text: await statsText() });
@@ -111,12 +130,28 @@ export async function onAdminButton(query) {
     });
   } else await answer();
 
-  // Redraw the panel in place.
-  const p = await panel();
+  return redraw(chat_id, message_id, await panel());
+}
+
+/** Shows `p` in the tapped message (or a new one when typed / too old to edit). */
+async function redraw(chat_id, message_id, p) {
   if (message_id) {
     try {
       return await api.editMessageText({ chat_id, message_id, parse_mode: 'HTML', ...p });
-    } catch {}
+    } catch (e) {
+      if (/not modified/.test(e.description ?? '')) return;
+    }
   }
   return api.sendMessage({ chat_id, parse_mode: 'HTML', ...p });
+}
+
+/** /users and /user <name | @username | ID> */
+export async function sendStudents(chat_id, query = '') {
+  const id = Number(query);
+  if (Number.isInteger(id) && id > 0 && (await studentExists(id))) return redraw(chat_id, null, await studentCard(id));
+  return redraw(chat_id, null, await studentsPage(0, query));
+}
+
+async function studentExists(id) {
+  return Boolean(await db.get(sql`SELECT 1 AS x FROM users WHERE id = ${id}`));
 }

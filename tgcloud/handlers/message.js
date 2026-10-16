@@ -1,7 +1,7 @@
 // handlers/message.js — private chat with the bot. Students mostly use buttons
 // (lib/botui.js); typed commands still work. Admin tools: /admin (lib/admin.js).
 import { api } from 'sdk';
-import { onAdminButton, isAdmin, sendAdminPanel, statsText } from '../lib/admin.js';
+import { onAdminButton, isAdmin, sendAdminPanel, sendStudents, statsText } from '../lib/admin.js';
 import { sendBalance, sendInvite, sendLangPicker, sendMenu, sendPaySupport, sendTop, sendWelcome, setCommandMenus } from '../lib/botui.js';
 import { finishInChat, onVoice, startChatMock } from '../lib/chatmode.js';
 import { APP_URL, CHANNEL_ID } from '../lib/config.js';
@@ -26,7 +26,7 @@ export default async function (message) {
   return route(message, from, cmd, args, admin);
 }
 
-const ADMIN_COMMANDS = ['/admin', '/setup', '/stats', '/grant', '/payments', '/leaderboard', '/refund'];
+const ADMIN_COMMANDS = ['/users', '/user', '/admin', '/setup', '/stats', '/grant', '/payments', '/leaderboard', '/refund'];
 const isAdminCommand = (cmd) => ADMIN_COMMANDS.includes(cmd);
 
 async function route(message, from, cmd, args, admin) {
@@ -69,6 +69,9 @@ async function route(message, from, cmd, args, admin) {
     switch (cmd) {
       case '/admin':
         return sendAdminPanel(from.id);
+      case '/users':
+      case '/user':
+        return sendStudents(from.id, args.join(' '));
       case '/setup':
         return setup(from.id);
       case '/stats':

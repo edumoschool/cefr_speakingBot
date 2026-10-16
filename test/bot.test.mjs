@@ -556,7 +556,7 @@ test('admin panel: buttons for stats, payments and posting; hidden from students
   assert.match(panel.text, /Admin panel[\s\S]*✅ OpenAI[\s\S]*Speech-to-text: <b>Deepgram<\/b> \(backup ready\)/);
   assert.ok(!/To finish setup/.test(panel.text));
   const data = panel.reply_markup.inline_keyboard.flat().map((b) => b.callback_data);
-  assert.deepEqual(data, ['adm:stats', 'adm:board', 'adm:pay', 'adm:grant', 'adm:panel']);
+  assert.deepEqual(data, ['adm:stats', 'adm:board', 'adm:pay', 'adm:users:0', 'adm:panel']);
 
   await onCallback({ id: 'cb', from: { id: admin }, data: 'adm:pay', message: { message_id: 7, chat: { id: admin } } });
   assert.equal(lastSent('answerCallbackQuery').params.text, 'Payments are ON');
@@ -706,4 +706,45 @@ test('grading works with models that reject reasoning_effort (gpt-4o, gpt-4.1)',
   } finally {
     fake.fetch = realFetch;
   }
+});
+
+test('admin students: paginated list, search, card with history, give free tests', async () => {
+  const { ADMIN_IDS } = await import('../tgcloud/lib/config.js');
+  const admin = ADMIN_IDS[0];
+  for (let i = 0; i < 10; i++) await onMessage({ ...msg(3000 + i, '/start'), from: { id: 3000 + i, first_name: `Stu${i}`, username: `stu_${i}` } });
+  const tap = (data, mid = 77) => onCallback({ id: 'cb', from: { id: admin }, data, message: { message_id: mid, chat: { id: admin } } });
+  const shown = () => fake.sent.filter((c) => c.method === 'editMessageText' || (c.method === 'sendMessage' && c.params.chat_id === admin)).at(-1).params;
+  const buttons = () => shown().reply_markup.inline_keyboard.flat();
+
+  await tap('adm:users:0');
+  assert.match(shown().text, /Students<\/b> — \d+/);
+  const students = buttons().filter((b) => b.callback_data.startsWith('adm:u:'));
+  assert.equal(students.length, 8, 'one page = 8 students');
+  const next = buttons().find((b) => b.text.startsWith('Next'));
+  await tap(next.callback_data);
+  assert.match(shown().text, /Page 2 of/);
+  assert.ok(buttons().some((b) => b.text.startsWith('◀️')));
+
+  // search by @username, then open the card
+  await onMessage(msg(admin, '/user @stu_7'));
+  const found = buttons().filter((b) => b.callback_data.startsWith('adm:u:'));
+  assert.equal(found.length, 1);
+  assert.match(found[0].text, /Stu7 @stu_7 · 🎟 1 · 🎤 0/);
+  await tap(found[0].callback_data);
+  assert.match(shown().text, /Stu7[\s\S]*ID: <code>3007<\/code>[\s\S]*Tests left: <b>1<\/b>[\s\S]*free test for joining/);
+
+  // give 2 tests: balance, ledger, student notified, card redrawn
+  await tap('adm:g:3007:2:0');
+  assert.equal(attempts(3007), 3);
+  assert.match(lastSent('answerCallbackQuery').params.text, /Gave 2 tests\. Now: 3/);
+  assert.ok(fake.sent.some((c) => c.method === 'sendMessage' && c.params.chat_id === 3007 && /2/.test(c.params.text)));
+  assert.match(shown().text, /Tests left: <b>3<\/b>[\s\S]*\+2 — given by admin/);
+  await tap('adm:g:3007:-1:0');
+  assert.equal(attempts(3007), 2);
+
+  // a typed ID opens the card directly; students can't use any of it
+  await onMessage(msg(admin, '/user 3007'));
+  assert.match(shown().text, /ID: <code>3007<\/code>/);
+  await onCallback({ id: 'cb', from: { id: 3001 }, data: 'adm:g:3001:5:0', message: { message_id: 1, chat: { id: 3001 } } });
+  assert.equal(attempts(3001), 1, 'a student cannot give themselves tests');
 });

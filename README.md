@@ -33,17 +33,18 @@ score out of 75, a CEFR level (B1 / B2 / C1) and detailed feedback.
 **What you do (admin)** — send **/admin** to the bot. You get one message with buttons:
 - ✅/❌ shows which `.env` values are set (OpenAI, Deepgram, ElevenLabs, Mini App link) and which transcriber is in use.
 - ⚠️ If grading or speech-to-text fails (wrong key, no credit, model not available), the bot messages you the reason in plain words, at most once every 10 minutes. The latest problem is also shown in /admin. The student's test is kept, so they can try again.
-- 📊 Statistics · 🏆 Post top speakers to the channel · ⭐ Turn payments on/off · 🎁 How to give a student free tests.
+- 📊 Statistics · 🏆 Post top speakers to the channel · ⭐ Turn payments on/off · 👥 Students.
+- 👥 **Students**: everyone who started the bot, 8 per page, most recently active first. Tap a student to see their tests left, finished tests with scores, invited friends, purchases and the history of their test balance. Buttons 🎁 +1 / +2 / +5 give free tests (the student gets a message); ➖ takes one back. To find someone, send `/user name`, `/user @username` or `/user ID`.
 
 API keys and settings are **not** entered in the bot. They live in your `.env` file (see Deploy). After deploying, send `/setup` once to install the menu button.
-To give someone free tests: `/grant THEIR_ID NUMBER`. Students can see their ID in the app under Settings → Need help?
+You can also give tests by typing `/grant THEIR_ID NUMBER`. Students can see their ID in the app under Settings → Need help?
 
 ## Project layout
 
 ```
 tgcloud/                     ← deployed to Telegram Serverless (runs in a V8 isolate; only `sdk` + these files)
   schema.js                  SQLite tables: users, sessions, answers, audio_chunks, part_grades, attempt_ledger, settings
-  handlers/message.js        /start ref_<id>, /referral, /balance, admin: /admin /setup /stats /grant
+  handlers/message.js        /start ref_<id>, /referral, /balance, admin: /admin /users /user /setup /stats /grant
   handlers/callback_query.js "I've joined" button
   handlers/chat_member.js    channel join events → referral credit
   handlers/pre_checkout_query.js  Stars payment validation
@@ -132,7 +133,7 @@ Then, in Telegram:
 3. Optionally, set the Mini App in @BotFather (`/newapp` or Main Mini App) with the same URL, so that `t.me/<bot>/<app>?startapp=ref_<id>` also works.
 
 User commands: `/start`, `/voice` (mock in chat), `/finish`, `/referral`, `/balance`, `/top`, `/lang`, `/buy`, `/paysupport`.
-Admin commands: `/stats`, `/grant <userId> <n>`, `/leaderboard` (post to the channel; the bot needs "Post messages" rights), `/payments on|off`, `/refund <charge_id>`, `/setup`, `/admin`.
+Admin commands: `/users`, `/user <name|@username|ID>`, `/stats`, `/grant <userId> <n>`, `/leaderboard` (post to the channel; the bot needs "Post messages" rights), `/payments on|off`, `/refund <charge_id>`, `/setup`, `/admin`.
 Before turning payments on, set `SUPPORT_CONTACT` in `.env` and review `STAR_PACKS` in `tgcloud/lib/config.js`. Schema changes: edit `tgcloud/schema.js`, then run `npm run deploy` and `npx tgcloud migrate`.
 
 ## Local development
