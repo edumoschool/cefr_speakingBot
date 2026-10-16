@@ -2,7 +2,8 @@
 // referral progress, unfinished mock and history.
 import { api, db } from 'sdk';
 import { sql } from 'sdk/db';
-import { CHANNEL_URL, REFERRALS_PER_ATTEMPT } from '../lib/config.js';
+import { CHANNEL_URL, REFERRALS_PER_ATTEMPT, STAR_PACKS } from '../lib/config.js';
+import { paymentsEnabled } from '../lib/payments.js';
 import { getTest } from '../lib/exam.js';
 import { activeSession, answeredKeys, isExpired, settleExpired } from '../lib/sessions.js';
 import { parseRefPayload } from '../lib/util.js';
@@ -27,6 +28,7 @@ export default async function (input, ctx) {
     isMember,
     channelUrl: CHANNEL_URL,
     botUsername,
+    shop: (await paymentsEnabled()) ? STAR_PACKS : null,
     referral: {
       link: `https://t.me/${botUsername}?start=ref_${from.id}`,
       qualified: user.ref_qualified_count,

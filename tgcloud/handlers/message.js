@@ -1,7 +1,8 @@
 // handlers/message.js — private chat with the bot.
 import { api, db } from 'sdk';
 import { sql } from 'sdk/db';
-import { ADMIN_IDS, CHANNEL_ID, CHANNEL_URL, REFERRALS_PER_ATTEMPT } from '../lib/config.js';
+import { ADMIN_IDS, CHANNEL_ID, CHANNEL_URL, REFERRALS_PER_ATTEMPT, SUPPORT_CONTACT } from '../lib/config.js';
+import { creditPayment, packsKeyboard, paymentsEnabled, refundPayment, setPaymentsEnabled } from '../lib/payments.js';
 import { KEYS, setSetting } from '../lib/settings.js';
 import { getUser, grantAttempts, openAppKeyboard, refreshMembership, upsertUser } from '../lib/users.js';
 import { parseRefPayload } from '../lib/util.js';
@@ -16,9 +17,15 @@ export default async function (message) {
   if (cmd === '/start') {
     await upsertUser(from, parseRefPayload(args[0]));
     if (args[0] === 'voice') return startChatMock(from.id);
+    if (args[0] === 'buy' && (await paymentsEnabled())) {
+      return api.sendMessage({ chat_id: from.id, text: '⭐ Get more speaking mocks with Telegram Stars:', reply_markup: packsKeyboard() });
+    }
     return sendWelcome(from, await refreshMembership(from.id));
   }
   await upsertUser(from);
+
+  // Stars purchase completed (see lib/payments.js).
+  if (message.successful_payment) return creditPayment(message);
 
   // Answering a question of a chat-mode mock (see lib/chatmode.js).
   if (message.voice) return onVoice(message);
@@ -38,6 +45,27 @@ export default async function (message) {
         reply_markup: { inline_keyboard: [[{ text: '📤 Share link', url: shareUrl(link) }]] },
       });
     }
+    case '/buy':
+      if (!(await paymentsEnabled())) return api.sendMessage({ chat_id: from.id, text: 'Purchases are not available right now. Invite friends to earn free mocks: /referral' });
+      return api.sendMessage({ chat_id: from.id, text: '⭐ Get more speaking mocks with Telegram Stars:', reply_markup: packsKeyboard() });
+    case '/paysupport':
+      return api.sendMessage({
+        chat_id: from.id,
+        text: `💬 Payment support: ${SUPPORT_CONTACT}
+Please include the payment code from your receipt. Unused purchases can be refunded.`,
+      });
+    case '/payments':
+      if (!isAdmin) break;
+      if (args[0] === 'on' || args[0] === 'off') await setPaymentsEnabled(args[0] === 'on');
+      return api.sendMessage({ chat_id: from.id, text: `Payments are ${(await paymentsEnabled()) ? 'ON ⭐' : 'OFF'}. Use /payments on|off.` });
+    case '/refund':
+      if (!isAdmin) break;
+      if (!args[0]) return api.sendMessage({ chat_id: from.id, text: 'Usage: /refund <telegram_payment_charge_id>' });
+      try {
+        return api.sendMessage({ chat_id: from.id, text: await refundPayment(args[0]) });
+      } catch (e) {
+        return api.sendMessage({ chat_id: from.id, text: `Refund failed: ${e.description ?? e.message}` });
+      }
     case '/voice':
       return startChatMock(from.id);
     case '/finish':
@@ -127,6 +155,8 @@ async function setup(chat_id, url) {
       { command: 'start', description: 'Open the speaking mock' },
       { command: 'voice', description: 'Take the mock here in chat with voice messages' },
       { command: 'referral', description: 'Invite friends and earn free mocks' },
+      { command: 'buy', description: 'Get more mocks with Telegram Stars' },
+      { command: 'paysupport', description: 'Help with a payment' },
       { command: 'balance', description: 'How many mocks I have left' },
     ],
   });

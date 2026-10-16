@@ -3,7 +3,7 @@ import { sql } from 'sdk/db';
 
 // API keys live in the database because the platform has no secret store:
 // admins set them from the bot with /setkey (the message is deleted right away).
-export const KEYS = { openai: 'openai_api_key', deepgram: 'deepgram_api_key', app_url: 'app_url' };
+export const KEYS = { openai: 'openai_api_key', deepgram: 'deepgram_api_key', app_url: 'app_url', payments: 'payments' };
 
 export async function getSetting(key) {
   const row = await db.get(sql`SELECT value FROM settings WHERE key = ${key}`);

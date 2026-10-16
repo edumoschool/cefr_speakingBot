@@ -10,6 +10,7 @@ score out of 75, a CEFR level (B1 / B2 / C1) and detailed feedback.
 - **Referral link** `t.me/<bot>?start=ref_<id>`: every 3 referred users who join the channel give the referrer **+1 attempt**.
 - **Two ways to answer**: record in the Mini App, or take the same mock **in the bot chat with voice messages** (`/voice`).
   The chat option is a fallback for phones where the Mini App can't use the microphone.
+- **Optional paid attempts with Telegram Stars**: packs set in `tgcloud/lib/config.js`, **off until an admin sends `/payments on`**.
 - 34 complete mocks taken from your PDFs, with 102 exam pictures and model answers for the 14 Mock Book tests. There is also an EN/UZ/RU topic vocabulary list.
 
 ## Project layout
@@ -20,8 +21,9 @@ tgcloud/                     ← deployed to Telegram Serverless (runs in a V8 i
   handlers/message.js        /start ref_<id>, /referral, /balance, admin: /setkey /setup /stats /grant
   handlers/callback_query.js "I've joined" button
   handlers/chat_member.js    channel join events → referral credit
+  handlers/pre_checkout_query.js  Stars payment validation
   endpoints/                 called by the Mini App as POST /api/<name>
-    me · start_mock · upload_answer · grade_part · finish_mock · get_result
+    me · start_mock · upload_answer · grade_part · finish_mock · get_result · create_invoice
   lib/                       config, exam structure, scoring, Deepgram, OpenAI, sessions, users, question bank
 src/                         React + Ionic Mini App (Vite) → built to dist/ → hosted by tgcloud
 public/img, public/data      exam pictures and vocabulary
@@ -49,6 +51,8 @@ Platform-specific design decisions:
 | Endpoints take JSON only | Recordings are sent as base64 in chunks of 300k characters or less. They are assembled on the last chunk, transcribed, then deleted. Re-sending the last chunk retries a failed transcription. |
 | Telegram file helpers | Chat voice messages are downloaded with `api.getFileContent(file_id)`, so the code never handles the bot token or a download URL. Telegram's 20 MB getFile cap is far above a 2-minute voice note. Voices longer than the time limit plus 15 s are rejected before transcription. |
 | `fetch` responses are read as text, max 30 MB | Deepgram and OpenAI return JSON (a few KB to tens of KB), read with `res.json()`. Audio bytes only go out, as a `Uint8Array` request body. |
+| Stars payments | `pre_checkout_query` checks the pack, price, currency `XTR` and buyer. `successful_payment` credits attempts **once per `telegram_payment_charge_id`** (the `payments` table), so a redelivered update can't double-credit. The attempt count is carried in the invoice payload, so later price edits don't change paid invoices. `/refund <charge_id>` calls `refundStarPayment` and removes the purchased attempts. |
+| Abandoned mocks | After 3 hours, an unfinished mock with no answers is closed and its attempt refunded. One with answers goes straight to grading. Partial uploads are deleted. |
 | Request time limits | Each answer is transcribed as soon as it is recorded. Each part is graded in the background while the student keeps going. The result is ready a few seconds after the last answer (6.4 s in local testing). |
 | No secret store | API keys live in the `settings` table. An admin sets them with `/setkey`, and the bot deletes that message immediately. |
 | Raw SQL: `db.run` is for writes, `db.all`/`db.get` for reads | Every `INSERT/UPDATE … RETURNING` goes through `returning()` (`lib/db.js`), which reads `db.run(...).rows`. The local stand-in rejects writes passed to `db.all`, so tests catch mistakes. |
@@ -89,7 +93,9 @@ Then, in Telegram:
    - `/setup https://app<id>.tgcloud.ai/` sets the Mini App URL, the menu button and the command list, and checks the channel admin rights.
 3. Optionally, set the Mini App in @BotFather (`/newapp` or Main Mini App) with the same URL, so that `t.me/<bot>/<app>?startapp=ref_<id>` also works.
 
-User commands: `/start`, `/voice` (mock in chat), `/finish`, `/referral`, `/balance`. Admin commands: `/stats` and `/grant <userId> <n>`. Schema changes: edit `tgcloud/schema.js`, then run `npm run deploy` and `npx tgcloud migrate`.
+User commands: `/start`, `/voice` (mock in chat), `/finish`, `/referral`, `/balance`, `/buy`, `/paysupport`.
+Admin commands: `/stats`, `/grant <userId> <n>`, `/payments on|off`, `/refund <charge_id>`, `/setkey`, `/setup`.
+Before turning payments on, set `SUPPORT_CONTACT` and review `STAR_PACKS` in `tgcloud/lib/config.js`. Schema changes: edit `tgcloud/schema.js`, then run `npm run deploy` and `npx tgcloud migrate`.
 
 ## Local development
 
@@ -109,7 +115,6 @@ A mock has about 10 minutes of speech. Deepgram nova-3 costs roughly $0.04 for t
 
 ## Roadmap ideas
 
-- **Paid attempts** with Telegram Stars (`sendInvoice`, currency `XTR`), credited from the `pre_checkout_query` and `message` handlers, and recorded in `attempt_ledger`.
 - **Stronger referral anti-fraud**: credit a referral only after the friend finishes their free mock, or re-check later that they're still in the channel.
 - **Examiner voice**: pre-generated question audio (Deepgram Aura / OpenAI TTS) served from `dist/`, instead of browser speech synthesis.
 - **Part drills** (for example Part 3 only) for 1/4 attempt, and a weekly leaderboard posted to the channel.

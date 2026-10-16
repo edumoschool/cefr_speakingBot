@@ -3,6 +3,8 @@ export interface Me {
   isMember: boolean;
   channelUrl: string;
   botUsername: string;
+  /** Stars packs for sale, or null while payments are off. */
+  shop: { id: string; attempts: number; stars: number }[] | null;
   referral: { link: string; qualified: number; per: number; progress: number };
   active: { id: string; status: 'in_progress' | 'grading'; testTitle?: string; answered: string[] } | null;
   history: { id: string; title: string; score: number; level: string; date: number }[];

@@ -64,7 +64,11 @@ export default function App() {
     return () => tg?.BackButton.offClick(onBack);
   }, [screen.name]);
 
-  const refreshMe = () => api.me().then(setMe).catch(() => undefined);
+  const refreshMe = () =>
+    api.me().then((m) => {
+      setMe(m);
+      return m;
+    }).catch(() => undefined);
 
   const begin = async (stream: MediaStream) => {
     setScreen({ name: 'loading' });
@@ -110,7 +114,7 @@ export default function App() {
       case 'gate':
         return <Gate channelUrl={me?.channelUrl ?? ''} onCheck={loadHome} />;
       case 'home':
-        return me && <Home me={me} onStart={onStart} onOpenResult={openResult} onVocab={() => setScreen({ name: 'vocab' })} />;
+        return me && <Home me={me} onStart={onStart} onOpenResult={openResult} onVocab={() => setScreen({ name: 'vocab' })} onRefresh={refreshMe} />;
       case 'ready':
         return <Ready resuming={!!me?.active} botUsername={me?.botUsername ?? ''} onBegin={begin} onBack={() => setScreen({ name: 'home' })} />;
       case 'exam':

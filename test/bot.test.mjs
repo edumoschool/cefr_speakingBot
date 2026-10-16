@@ -14,6 +14,8 @@ import uploadAnswer from '../tgcloud/endpoints/upload_answer.js';
 import gradePart from '../tgcloud/endpoints/grade_part.js';
 import finishMock from '../tgcloud/endpoints/finish_mock.js';
 import getResult from '../tgcloud/endpoints/get_result.js';
+import createInvoice from '../tgcloud/endpoints/create_invoice.js';
+import onPreCheckout from '../tgcloud/handlers/pre_checkout_query.js';
 import { CHANNEL_ID } from '../tgcloud/lib/config.js';
 
 const ctx = (id, extra = {}) => ({ initData: { user: { id, first_name: `U${id}` }, ...extra } });
@@ -297,4 +299,63 @@ test('expired mock with answers goes to grading instead of blocking', async () =
   const done = await finishMock({ session: session.id }, ctx(500));
   assert.ok(done.result.score >= 0);
   assert.equal(attempts(500), 0, 'graded mocks are not refunded');
+});
+
+// ---- Telegram Stars purchases
+const lastSent = (method) => fake.sent.filter((c) => c.method === method).at(-1);
+const paid = (userId, payload, amount, charge) => ({
+  message_id: 50, chat: { id: userId, type: 'private' }, from: { id: userId, first_name: 'Buyer' },
+  successful_payment: { currency: 'XTR', total_amount: amount, invoice_payload: payload, telegram_payment_charge_id: charge, provider_payment_charge_id: '' },
+});
+
+test('payments are off by default and only admins can turn them on', async () => {
+  const { ADMIN_IDS } = await import('../tgcloud/lib/config.js');
+  await onMessage(msg(1100, '/buy'));
+  assert.match(lastSent('sendMessage').params.text, /not available/);
+  assert.equal((await me({}, ctx(1100))).shop, null);
+  await assert.rejects(createInvoice({ pack: 'p1' }, ctx(1100)), (e) => e.parameters.code === 'PAYMENTS_OFF');
+  await onMessage(msg(1100, '/payments on')); // not an admin
+  assert.equal((await me({}, ctx(1100))).shop, null);
+  await onMessage(msg(ADMIN_IDS[0], '/payments on'));
+  assert.equal((await me({}, ctx(1100))).shop.length, 3);
+});
+
+test('stars purchase: invoice, pre-checkout validation, credited exactly once, admin refund', async () => {
+  const { ADMIN_IDS, STAR_PACKS } = await import('../tgcloud/lib/config.js');
+  await onMessage(msg(ADMIN_IDS[0], '/payments on'));
+  await onMessage(msg(1200, '/start'));
+  const p3 = STAR_PACKS.find((p) => p.id === 'p3');
+
+  await onCallback({ id: 'cb', from: { id: 1200 }, data: 'buy:p3' });
+  const inv = lastSent('sendInvoice').params;
+  assert.equal(inv.currency, 'XTR');
+  assert.equal(inv.prices[0].amount, p3.stars);
+  assert.equal(inv.payload, `pack:p3:${p3.attempts}:1200`);
+  assert.ok((await createInvoice({ pack: 'p3' }, ctx(1200))).link);
+
+  const pre = async (over) => {
+    await onPreCheckout({ id: 'q', from: { id: 1200 }, currency: 'XTR', total_amount: p3.stars, invoice_payload: inv.payload, ...over });
+    return lastSent('answerPreCheckoutQuery').params;
+  };
+  assert.equal((await pre({})).ok, true);
+  assert.equal((await pre({ total_amount: 1 })).ok, false, 'tampered amount');
+  assert.equal((await pre({ from: { id: 9999 } })).ok, false, 'someone else\'s invoice');
+  assert.equal((await pre({ invoice_payload: 'pack:nope:1:1200' })).ok, false, 'unknown pack');
+  await onMessage(msg(ADMIN_IDS[0], '/payments off'));
+  assert.match((await pre({})).error_message, /paused/);
+  await onMessage(msg(ADMIN_IDS[0], '/payments on'));
+
+  // Telegram may redeliver the update: credit once
+  await onMessage(paid(1200, inv.payload, p3.stars, 'charge-1'));
+  await onMessage(paid(1200, inv.payload, p3.stars, 'charge-1'));
+  assert.equal(attempts(1200), 1 + p3.attempts);
+  assert.equal(q1("SELECT count(*) n FROM attempt_ledger WHERE user_id = 1200 AND reason = 'purchase'").n, 1);
+  assert.match(lastSent('sendMessage').params.text, /3 speaking mocks added/);
+
+  await onMessage(msg(ADMIN_IDS[0], '/refund charge-1'));
+  assert.deepEqual(lastSent('refundStarPayment').params, { user_id: 1200, telegram_payment_charge_id: 'charge-1' });
+  assert.equal(attempts(1200), 1);
+  assert.equal(q1("SELECT status FROM payments WHERE charge_id = 'charge-1'").status, 'refunded');
+  await onMessage(msg(ADMIN_IDS[0], '/refund charge-1'));
+  assert.match(lastSent('sendMessage').params.text, /Already refunded/);
 });

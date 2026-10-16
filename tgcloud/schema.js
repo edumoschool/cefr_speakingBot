@@ -24,7 +24,7 @@ export const attemptLedger = table('attempt_ledger', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull(),
   delta: integer('delta').notNull(),
-  reason: text('reason').notNull(), // signup_free | referral_reward | mock_start | refund | admin_grant | purchase
+  reason: text('reason').notNull(), // signup_free | referral_reward | mock_start | refund | admin_grant | purchase | refund_purchase
   refUserId: integer('ref_user_id'),
   sessionId: text('session_id'),
   createdAt: integer('created_at').notNull().default(sql`(unixepoch())`),
@@ -79,6 +79,19 @@ export const partGrades = table('part_grades', {
   updatedAt: integer('updated_at').notNull().default(sql`(unixepoch())`),
 }, (t) => ({
   pk: primaryKey({ columns: [t.sessionId, t.part] }),
+}));
+
+// Telegram Stars purchases. The charge id makes crediting idempotent.
+export const payments = table('payments', {
+  chargeId: text('charge_id').primaryKey(), // telegram_payment_charge_id
+  userId: integer('user_id').notNull(),
+  packId: text('pack_id').notNull(),
+  stars: integer('stars').notNull(),
+  attempts: integer('attempts').notNull(),
+  status: text('status').notNull().default('paid'), // paid | refunded
+  createdAt: integer('created_at').notNull().default(sql`(unixepoch())`),
+}, (t) => ({
+  userIdx: index('idx_payments_user').on(t.userId),
 }));
 
 // API keys and runtime settings, set by admins from the bot (/setkey, /setup).

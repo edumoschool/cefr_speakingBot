@@ -2,17 +2,45 @@ import {
   IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonHeader,
   IonIcon, IonItem, IonLabel, IonList, IonNote, IonPage, IonTitle, IonToolbar, useIonToast,
 } from '@ionic/react';
-import { bookOutline, copyOutline, micOutline, shareSocialOutline } from 'ionicons/icons';
+import { bookOutline, copyOutline, micOutline, shareSocialOutline, starOutline } from 'ionicons/icons';
+import { useState } from 'react';
+import { api } from '../api';
 import { levelColor } from '../levels';
-import { haptic, openTelegramLink } from '../telegram';
+import { haptic, openTelegramLink, tg } from '../telegram';
 import type { Me } from '../types';
 
 const SHARE_TEXT = '🎤 Practise the Multilevel speaking exam with instant AI scoring — your first mock is free!';
 
-export function Home({ me, onStart, onOpenResult, onVocab }: { me: Me; onStart: () => void; onOpenResult: (id: string) => void; onVocab: () => void }) {
+export function Home({ me, onStart, onOpenResult, onVocab, onRefresh }: { me: Me; onStart: () => void; onOpenResult: (id: string) => void; onVocab: () => void; onRefresh: () => Promise<Me | undefined> }) {
   const [toast] = useIonToast();
   const r = me.referral;
   const canStart = !!me.active || me.user.attempts > 0;
+
+  const [buying, setBuying] = useState<string | null>(null);
+
+  // Stars purchase: the credit arrives via the bot's successful_payment update, so poll briefly.
+  const buy = async (packId: string) => {
+    if (!tg?.openInvoice) return openTelegramLink(`https://t.me/${me.botUsername}?start=buy`);
+    setBuying(packId);
+    try {
+      const { link } = await api.createInvoice(packId);
+      tg.openInvoice(link, async (status) => {
+        if (status !== 'paid') return setBuying(null);
+        haptic('success');
+        const before = me.user.attempts;
+        for (let i = 0; i < 8; i++) {
+          const fresh = await onRefresh();
+          if (fresh && fresh.user.attempts > before) break;
+          await new Promise((r) => setTimeout(r, 1500));
+        }
+        setBuying(null);
+        toast({ message: 'Thank you! Your mocks were added.', duration: 2500, position: 'top', color: 'success' });
+      });
+    } catch (e) {
+      setBuying(null);
+      toast({ message: e instanceof Error ? e.message : String(e), duration: 3000, position: 'top', color: 'danger' });
+    }
+  };
 
   const share = () =>
     openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(r.link)}&text=${encodeURIComponent(SHARE_TEXT)}`);
@@ -85,6 +113,28 @@ export function Home({ me, onStart, onOpenResult, onVocab }: { me: Me; onStart: 
             <code className="ref-link">{r.link}</code>
           </IonCardContent>
         </IonCard>
+
+        {me.shop && (
+          <IonCard>
+            <IonCardHeader>
+              <IonCardTitle>⭐ Get more mocks</IonCardTitle>
+              <IonCardSubtitle>Pay with Telegram Stars</IonCardSubtitle>
+            </IonCardHeader>
+            <IonList lines="none">
+              {me.shop.map((p) => (
+                <IonItem key={p.id}>
+                  <IonLabel>
+                    {p.attempts} mock{p.attempts === 1 ? '' : 's'}
+                  </IonLabel>
+                  <IonButton slot="end" fill="outline" disabled={!!buying} onClick={() => buy(p.id)} data-testid={`buy-${p.id}`}>
+                    <IonIcon slot="start" icon={starOutline} />
+                    {buying === p.id ? '…' : p.stars}
+                  </IonButton>
+                </IonItem>
+              ))}
+            </IonList>
+          </IonCard>
+        )}
 
         <IonCard>
           <IonCardHeader>

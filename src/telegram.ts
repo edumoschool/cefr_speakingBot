@@ -14,6 +14,7 @@ export interface TgWebApp {
   disableClosingConfirmation?(): void;
   openTelegramLink(url: string): void;
   close?(): void;
+  openInvoice?(url: string, cb?: (status: 'paid' | 'cancelled' | 'failed' | 'pending') => void): void;
   openLink(url: string): void;
   showAlert?(text: string): void;
   onEvent(event: string, cb: () => void): void;

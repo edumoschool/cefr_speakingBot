@@ -48,5 +48,6 @@ export const api = {
     call<{ done: boolean }>('upload_answer', input),
   gradePart: (session: string, part: string) => call<{ ok: true }>('grade_part', { session, part }),
   finish: (session: string) => call<{ id: string; result: MockResult }>('finish_mock', { session }),
+  createInvoice: (pack: string) => call<{ link: string }>('create_invoice', { pack }),
   result: (id: string) => call<{ id: string; result: MockResult }>('get_result', { id }),
 };

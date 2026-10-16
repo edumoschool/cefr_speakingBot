@@ -16,3 +16,14 @@ export const DEEPGRAM_MODEL = 'nova-3';
 
 // Unfinished mocks stop accepting answers after this long (they can still be graded).
 export const SESSION_TTL_SEC = 3 * 60 * 60;
+
+// Attempt packs sold for Telegram Stars (currency XTR). Payments are OFF until an
+// admin sends /payments on in the bot. Editing a price only affects new invoices.
+export const STAR_PACKS = [
+  { id: 'p1', attempts: 1, stars: 50 },
+  { id: 'p3', attempts: 3, stars: 125 },
+  { id: 'p10', attempts: 10, stars: 350 },
+];
+
+// Shown by /paysupport (Telegram requires bots selling digital goods to offer it).
+export const SUPPORT_CONTACT = '@your_support_username';

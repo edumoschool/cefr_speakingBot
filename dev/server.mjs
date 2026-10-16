@@ -7,6 +7,7 @@
 // Env: OPENAI_API_KEY / DEEPGRAM_API_KEY are copied into the settings table.
 //      FAKE_DEEPGRAM=1 returns a canned transcript (no Deepgram key needed).
 //      LOCAL_DB=dev/.local.db keeps data between restarts (default: in memory).
+//      PAYMENTS=on shows the Stars shop (invoices are faked locally).
 // The user is taken from the x-dev-init header (no Telegram signature locally).
 import { createServer } from 'node:http';
 import { existsSync, readFileSync, statSync } from 'node:fs';
@@ -20,6 +21,7 @@ createSchema(_database(), await import(pathToFileURL(path.join(ROOT, 'tgcloud/sc
 for (const [env, key] of [['OPENAI_API_KEY', 'openai_api_key'], ['DEEPGRAM_API_KEY', 'deepgram_api_key']]) {
   if (process.env[env]) await db.run('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', [key, process.env[env]]);
 }
+if (process.env.PAYMENTS === 'on') await db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('payments', 'on')");
 fake.allMembers = true;
 
 if (process.env.FAKE_DEEPGRAM) {

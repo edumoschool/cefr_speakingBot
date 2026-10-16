@@ -3,8 +3,13 @@ import { api } from 'sdk';
 import { REFERRALS_PER_ATTEMPT } from '../lib/config.js';
 import { openAppKeyboard, refreshMembership, upsertUser } from '../lib/users.js';
 import { startChatMock } from '../lib/chatmode.js';
+import { sendInvoice } from '../lib/payments.js';
 
 export default async function (query) {
+  if (query.data?.startsWith('buy:')) {
+    await api.answerCallbackQuery({ callback_query_id: query.id });
+    return sendInvoice(query.from.id, query.data.slice(4));
+  }
   if (query.data === 'voice_mode') {
     await api.answerCallbackQuery({ callback_query_id: query.id });
     await upsertUser(query.from);
