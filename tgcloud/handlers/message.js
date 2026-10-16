@@ -1,7 +1,7 @@
 // handlers/message.js — private chat with the bot. Students mostly use buttons
 // (lib/botui.js); typed commands still work. Admin tools: /admin (lib/admin.js).
 import { api } from 'sdk';
-import { onAdminButton, isAdmin, sendAdminPanel, sendStudents, statsText } from '../lib/admin.js';
+import { onAdminButton, onAdminText, isAdmin, sendAdminKeyboard, sendAdminPanel, sendStudents, statsText } from '../lib/admin.js';
 import { sendBalance, sendInvite, sendLangPicker, sendMenu, sendPaySupport, sendTop, sendWelcome, setCommandMenus } from '../lib/botui.js';
 import { finishInChat, onVoice, startChatMock } from '../lib/chatmode.js';
 import { APP_URL, CHANNEL_ID } from '../lib/config.js';
@@ -15,7 +15,7 @@ export default async function (message) {
   if (message.chat?.type !== 'private' || !message.from || message.from.is_bot) return;
   const from = message.from;
   const [cmd, ...args] = (message.text ?? '').trim().split(/\s+/);
-  const admin = isAdmin(from.id);
+  const admin = await isAdmin(from.id);
   // Student input (commands, stray text) is removed once the bot has answered, so
   // only the current screen stays in the chat. Admin commands are kept as a log.
   if (message.text && !message.successful_payment) {
@@ -34,9 +34,13 @@ async function route(message, from, cmd, args, admin) {
     await upsertUser(from, parseRefPayload(args[0]));
     if (args[0] === 'voice') return startChatMock(from.id);
     if (args[0] === 'buy') return sendShop(from.id);
-    return sendWelcome(from, await refreshMembership(from.id));
+    await sendWelcome(from, await refreshMembership(from.id));
+    if (admin) await sendAdminKeyboard(from.id);
+    return;
   }
   await upsertUser(from);
+  // The admin's bottom buttons and search answers.
+  if (admin && message.text && (await onAdminText(message))) return;
 
   // Stars purchase completed (lib/payments.js).
   if (message.successful_payment) return creditPayment(message);
@@ -68,6 +72,7 @@ async function route(message, from, cmd, args, admin) {
   if (admin) {
     switch (cmd) {
       case '/admin':
+        await sendAdminKeyboard(from.id, true);
         return sendAdminPanel(from.id);
       case '/users':
       case '/user':

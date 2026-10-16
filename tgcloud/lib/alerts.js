@@ -2,7 +2,7 @@
 // students only see "something went wrong". This tells the owner the real reason:
 // a message to the admins (at most one every 10 minutes) and a line in /admin.
 import { api, EndpointError } from 'sdk';
-import { ADMIN_IDS } from './config.js';
+import { adminIds } from './owners.js';
 import { getSetting, KEYS, setSetting } from './settings.js';
 
 const ALERT_EVERY_SEC = 600;
@@ -36,7 +36,7 @@ export async function reportProblem(where, error) {
     await setSetting(KEYS.lastAlertAt, String(now));
     const hint = explain(message);
     const text = `⚠️ ${where} failed for a student.\n\n${hint ? `👉 ${hint}\n\n` : ''}Details: ${message}`;
-    for (const chat_id of ADMIN_IDS) {
+    for (const chat_id of await adminIds()) {
       try {
         await api.sendMessage({ chat_id, text });
       } catch {}

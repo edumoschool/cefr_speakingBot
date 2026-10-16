@@ -26,6 +26,7 @@ export const fake = {
   allMembers: false, // dev server: treat everyone as a channel member
   me: { id: 1, is_bot: true, username: 'dev_speaking_bot' },
   files: new Map(), // file_id → Uint8Array, for api.getFileContent
+  channelOwner: null, // user id returned as the channel's creator
   fetch: (...a) => globalThis.fetch(...a),
 };
 
@@ -36,6 +37,9 @@ export const api = new Proxy({}, {
     if (method === 'getChatMember') {
       if (params.user_id === fake.me.id) return { status: 'administrator' };
       return { status: fake.allMembers || fake.channelMembers.has(params.user_id) ? 'member' : 'left', user: { id: params.user_id } };
+    }
+    if (method === 'getChatAdministrators') {
+      return fake.channelOwner ? [{ status: 'creator', user: { id: fake.channelOwner, is_bot: false } }, { status: 'administrator', user: fake.me }] : [{ status: 'administrator', user: fake.me }];
     }
     if (method === 'getFileContent') {
       const f = fake.files.get(typeof params === 'string' ? params : params.file_id);

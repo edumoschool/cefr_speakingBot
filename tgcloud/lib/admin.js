@@ -2,7 +2,7 @@
 // remember commands. (The typed admin commands still work.)
 import { api, db } from 'sdk';
 import { sql } from 'sdk/db';
-import { ADMIN_IDS, APP_URL, CHANNEL_ID } from './config.js';
+import { APP_URL, CHANNEL_ID } from './config.js';
 import { ENV } from './env.js';
 import { weeklyTop } from './leaderboard.js';
 import { paymentsEnabled, setPaymentsEnabled } from './payments.js';
@@ -11,11 +11,70 @@ import { tr } from './texts.js';
 import { explain, lastProblem } from './alerts.js';
 import { escapeHtml } from './util.js';
 import { giveTests, studentCard, studentsPage } from './admin-users.js';
+import { detectedOwner, isAdmin } from './owners.js';
+import { adminKey, getSetting, setSetting } from './settings.js';
+import { removeMessages } from './screen.js';
 
-export const isAdmin = (id) => ADMIN_IDS.includes(id);
+export { isAdmin };
+
+// The admin's keyboard at the bottom of the chat (students never get it).
+export const ADMIN_BUTTONS = { students: '👥 Students', search: '🔎 Search', stats: '📊 Statistics', panel: '🛠 Admin panel' };
+const adminKeyboard = () => ({
+  keyboard: [
+    [{ text: ADMIN_BUTTONS.students }, { text: ADMIN_BUTTONS.search }],
+    [{ text: ADMIN_BUTTONS.stats }, { text: ADMIN_BUTTONS.panel }],
+  ],
+  resize_keyboard: true,
+  is_persistent: true,
+});
+
+/** Shows the admin keyboard. `onlyFirstTime`: skip if this admin already got it. */
+export async function sendAdminKeyboard(chatId, onlyFirstTime = false) {
+  const key = adminKey('keyboard', chatId);
+  if (onlyFirstTime && (await getSetting(key))) return;
+  await setSetting(key, '1');
+  return api.sendMessage({ chat_id: chatId, text: '🛠 You are the admin. Your tools are on the buttons below ⬇️', reply_markup: adminKeyboard() });
+}
+
+/**
+ * Admin keyboard buttons and the search answer. Returns true when the message was
+ * handled here (so handlers/message.js stops), false otherwise.
+ */
+export async function onAdminText(message) {
+  const chat_id = message.from.id;
+  const text = (message.text ?? '').trim();
+  if (text === ADMIN_BUTTONS.students) return (await sendStudents(chat_id), true);
+  if (text === ADMIN_BUTTONS.search) return (await askSearch(chat_id), true);
+  if (text === ADMIN_BUTTONS.stats) return (await api.sendMessage({ chat_id, parse_mode: 'HTML', text: await statsText() }), true);
+  if (text === ADMIN_BUTTONS.panel) return (await sendAdminPanel(chat_id), true);
+
+  // The answer to "🔎 Who are you looking for?"
+  if (!text || text.startsWith('/')) return false;
+  let wait = null;
+  try {
+    wait = JSON.parse((await getSetting(adminKey('search', chat_id))) ?? 'null');
+  } catch {}
+  if (!wait || Date.now() / 1000 - wait.at > SEARCH_WAIT_SEC) return false;
+  await setSetting(adminKey('search', chat_id), 'null');
+  if (wait.prompt) await removeMessages(chat_id, [wait.prompt]);
+  await sendStudents(chat_id, text);
+  return true;
+}
+
+const SEARCH_WAIT_SEC = 600;
+
+async function askSearch(chat_id) {
+  const prompt = await api.sendMessage({
+    chat_id,
+    text: '🔎 Who are you looking for? Send a name, @username or Telegram ID.',
+    reply_markup: { force_reply: true, input_field_placeholder: 'Name, @username or ID' },
+  });
+  await setSetting(adminKey('search', chat_id), JSON.stringify({ at: Math.floor(Date.now() / 1000), prompt: prompt?.message_id }));
+}
 
 async function panel() {
   const pay = await paymentsEnabled();
+  const owner = await detectedOwner();
   const problem = await lastProblem();
   const ago = problem && Math.max(1, Math.round((Date.now() / 1000 - problem.at) / 60));
   const problemText = problem && ago < 24 * 60
@@ -29,7 +88,10 @@ async function panel() {
     `🛠 <b>Admin panel</b>\n\n` +
     `${ok(ENV.OPENAI_API_KEY)} OpenAI   ${ok(ENV.DEEPGRAM_API_KEY)} Deepgram   ${ok(ENV.ELEVENLABS_API_KEY)} ElevenLabs   ${ok(APP_URL)} Mini App link\n` +
     `🎧 Speech-to-text: <b>${stt}</b>${backup ? ' (backup ready)' : ''}\n` +
-    `⭐ Payments: <b>${pay ? 'ON' : 'OFF'}</b>` +
+    `⭐ Payments: <b>${pay ? 'ON' : 'OFF'}</b>\n` +
+    (owner
+      ? `👑 Owner: <code>${owner}</code> (creator of the channel)`
+      : `👑 Owner: not found yet — make the bot an admin of ${escapeHtml(CHANNEL_ID)}, then tap 🔄 Refresh`) +
     problemText +
     (ENV.OPENAI_API_KEY && (ENV.DEEPGRAM_API_KEY || ENV.ELEVENLABS_API_KEY) && APP_URL
       ? ''
@@ -86,6 +148,10 @@ export async function onAdminButton(query) {
     const [, page, ...q] = action.split(':');
     await answer();
     return redraw(chat_id, message_id, await studentsPage(Number(page) || 0, q.join(':')));
+  }
+  if (action === 'search') {
+    await answer();
+    return askSearch(chat_id);
   }
   if (action.startsWith('u:')) {
     const [, id, page] = action.split(':').map(Number);

@@ -15,7 +15,7 @@ export default async function (query) {
   const done = (text, show_alert = false) => api.answerCallbackQuery({ callback_query_id: query.id, text, show_alert });
 
   if (data.startsWith('adm:')) {
-    if (!isAdmin(userId)) return done();
+    if (!(await isAdmin(userId))) return done();
     return onAdminButton(query);
   }
 

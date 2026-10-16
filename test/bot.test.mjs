@@ -748,3 +748,42 @@ test('admin students: paginated list, search, card with history, give free tests
   await onCallback({ id: 'cb', from: { id: 3001 }, data: 'adm:g:3001:5:0', message: { message_id: 1, chat: { id: 3001 } } });
   assert.equal(attempts(3001), 1, 'a student cannot give themselves tests');
 });
+
+test('owner: the channel creator is admin automatically, gets bottom buttons and can search', async () => {
+  const owner = 4242;
+  fake.channelOwner = owner;
+  for (let i = 0; i < 4; i++) await onMessage({ ...msg(3100 + i, '/start'), from: { id: 3100 + i, first_name: `S${i}`, username: `stu_${i}` } });
+  try {
+    await onMessage({ ...msg(owner, '/start'), from: { id: owner, first_name: 'Boss' } });
+    const kb = fake.sent.find((c) => c.method === 'sendMessage' && c.params.chat_id === owner && c.params.reply_markup?.keyboard);
+    assert.ok(kb, 'bottom keyboard sent');
+    assert.deepEqual(kb.params.reply_markup.keyboard.flat().map((b) => b.text), ['👥 Students', '🔎 Search', '📊 Statistics', '🛠 Admin panel']);
+
+    await onMessage({ ...msg(owner, '👥 Students'), from: { id: owner, first_name: 'Boss' } });
+    assert.match(sentTo(owner).at(-1).params.text, /Students<\/b>/);
+    assert.ok(sentTo(owner).at(-1).params.reply_markup.inline_keyboard.flat().some((b) => b.callback_data === 'adm:search'));
+
+    // search: button → prompt → typed answer → results; prompt and answer are cleaned up
+    await onCallback({ id: 'cb', from: { id: owner }, data: 'adm:search', message: { message_id: 5, chat: { id: owner } } });
+    const prompt = sentTo(owner).at(-1);
+    assert.equal(prompt.params.reply_markup.force_reply, true);
+    await onMessage({ ...msg(owner, 'stu_3'), message_id: 321, from: { id: owner, first_name: 'Boss' } });
+    const res = sentTo(owner).at(-1).params;
+    assert.match(res.text, /matching “stu_3”/);
+    assert.equal(res.reply_markup.inline_keyboard.flat().filter((b) => b.callback_data.startsWith('adm:u:')).length, 1);
+    const deleted = fake.sent.filter((c) => c.method === 'deleteMessages').flatMap((c) => c.params.message_ids);
+    assert.ok(deleted.includes(321), 'the typed search text is removed');
+
+    // the next plain text is not a search any more
+    await onMessage({ ...msg(owner, 'hello'), from: { id: owner, first_name: 'Boss' } });
+    assert.ok(!/matching/.test(sentTo(owner).at(-1).params.text));
+
+    await onMessage({ ...msg(owner, '/admin'), from: { id: owner, first_name: 'Boss' } });
+    assert.match(sentTo(owner).at(-1).params.text, /Owner: <code>4242<\/code>/);
+  } finally {
+    fake.channelOwner = null;
+  }
+  // someone else is not an admin
+  await onMessage(msg(4343, '👥 Students'));
+  assert.ok(!/Students<\/b>/.test(sentTo(4343).at(-1)?.params.text ?? ''));
+});

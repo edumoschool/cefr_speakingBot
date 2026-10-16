@@ -41,8 +41,7 @@ export async function studentsPage(page = 0, query = '') {
   const text =
     `👥 <b>Students</b> — ${total}${q ? ` matching “${escapeHtml(q)}”` : ''}\n` +
     (total ? `Page ${page + 1} of ${pages}. Tap a student to see details and give free tests.\n` : 'Nobody found.\n') +
-    `\n🎟 = tests left · 🎤 = full tests finished · 📢 = in the channel\n` +
-    `<i>Find someone: send</i> <code>/user name</code>, <code>/user @username</code> <i>or</i> <code>/user ID</code>`;
+    `\n🎟 = tests left · 🎤 = full tests finished · 📢 = in the channel`;
   const back = q ? 'adm:users:0' : 'adm:panel';
   const nav = [];
   if (page > 0) nav.push({ text: '◀️ Back', callback_data: listData(page - 1, q) });
@@ -57,7 +56,7 @@ export async function studentsPage(page = 0, query = '') {
           callback_data: `adm:u:${u.id}:${cardPage}`,
         }]),
         ...(nav.length ? [nav] : []),
-        [{ text: q ? '👥 All students' : '⬅️ Admin panel', callback_data: back }],
+        [{ text: '🔎 Search', callback_data: 'adm:search' }, { text: q ? '👥 All students' : '⬅️ Admin panel', callback_data: back }],
       ],
     },
   };

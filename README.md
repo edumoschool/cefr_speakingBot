@@ -30,11 +30,11 @@ score out of 75, a CEFR level (B1 / B2 / C1) and detailed feedback.
 - In the bot chat everything is buttons: open the app, take the test with voice messages, invite friends, top speakers, language. Typing anything just shows the menu.
 - The chat stays short: each new menu replaces the previous one, and the student's typed commands are removed. In the voice-message test only the current question is shown; the result message is always kept, and so are payment receipts and reward notices. (Telegram only allows deleting messages younger than 48 hours, so older ones stay.)
 
-**What you do (admin)** — send **/admin** to the bot. You get one message with buttons:
+**What you do (admin)** — the bot knows you are the owner because you created the channel (the bot must be an admin there). Press /start and you get buttons at the bottom of the chat: **👥 Students**, **🔎 Search**, **📊 Statistics** and **🛠 Admin panel**. Or send **/admin**. You get one message with buttons:
 - ✅/❌ shows which `.env` values are set (OpenAI, Deepgram, ElevenLabs, Mini App link) and which transcriber is in use.
 - ⚠️ If grading or speech-to-text fails (wrong key, no credit, model not available), the bot messages you the reason in plain words, at most once every 10 minutes. The latest problem is also shown in /admin. The student's test is kept, so they can try again.
 - 📊 Statistics · 🏆 Post top speakers to the channel · ⭐ Turn payments on/off · 👥 Students.
-- 👥 **Students**: everyone who started the bot, 8 per page, most recently active first. Tap a student to see their tests left, finished tests with scores, invited friends, purchases and the history of their test balance. Buttons 🎁 +1 / +2 / +5 give free tests (the student gets a message); ➖ takes one back. To find someone, send `/user name`, `/user @username` or `/user ID`.
+- 👥 **Students**: everyone who started the bot, 8 per page, most recently active first. Tap a student to see their tests left, finished tests with scores, invited friends, purchases and the history of their test balance. Buttons 🎁 +1 / +2 / +5 give free tests (the student gets a message); ➖ takes one back. To find someone, tap **🔎 Search** and type a name, @username or ID (or send `/user …`).
 
 API keys and settings are **not** entered in the bot. They live in your `.env` file (see Deploy). After deploying, send `/setup` once to install the menu button.
 You can also give tests by typing `/grant THEIR_ID NUMBER`. Students can see their ID in the app under Settings → Need help?
@@ -113,7 +113,7 @@ npx tgcloud webhook        # should say "in sync": message, callback_query, chat
 | `DEEPGRAM_API_KEY`, `DEEPGRAM_MODEL` | Deepgram (default model `nova-3`) |
 | `ELEVENLABS_API_KEY`, `ELEVENLABS_MODEL` | ElevenLabs Scribe (default model `scribe_v2`) |
 | `CHANNEL_ID`, `CHANNEL_URL` | The channel students must join |
-| `ADMIN_IDS` | Your Telegram user id (comma-separated for several admins) |
+| `ADMIN_IDS` | Optional. The creator of your channel is the admin automatically; add other people's Telegram ids here (comma-separated) to make them admins too |
 | `SUPPORT_CONTACT` | Shown to students who need help with a payment |
 | `APP_URL` | The Mini App link printed by deploy |
 

@@ -45,7 +45,6 @@ if (!['deepgram', 'elevenlabs'].includes(env.TRANSCRIBER)) problems.push('TRANSC
 if (!env.OPENAI_API_KEY) problems.push('OPENAI_API_KEY is missing');
 if (!env.DEEPGRAM_API_KEY && !env.ELEVENLABS_API_KEY) problems.push('set DEEPGRAM_API_KEY and/or ELEVENLABS_API_KEY');
 if (!env.CHANNEL_ID) problems.push('CHANNEL_ID is missing (e.g. @your_channel)');
-if (!env.ADMIN_IDS.length) problems.push('ADMIN_IDS is missing (your Telegram user id)');
 
 if (strict && problems.length) {
   console.error(`✖ .env is not ready:\n  - ${problems.join('\n  - ')}\nSee .env.example.`);
