@@ -1,11 +1,19 @@
 // handlers/callback_query.js — the "I've joined" button under the welcome message.
 import { api } from 'sdk';
 import { REFERRALS_PER_ATTEMPT } from '../lib/config.js';
-import { openAppKeyboard, refreshMembership, upsertUser } from '../lib/users.js';
+import { openAppKeyboard, refreshMembership, setFeedbackLang, upsertUser } from '../lib/users.js';
+import { LANGS } from '../lib/grading.js';
 import { startChatMock } from '../lib/chatmode.js';
 import { sendInvoice } from '../lib/payments.js';
 
 export default async function (query) {
+  if (query.data?.startsWith('lang:')) {
+    const lang = query.data.slice(5);
+    if (!Object.hasOwn(LANGS, lang)) return api.answerCallbackQuery({ callback_query_id: query.id });
+    await upsertUser(query.from);
+    await setFeedbackLang(query.from.id, lang);
+    return api.answerCallbackQuery({ callback_query_id: query.id, text: `✅ ${LANGS[lang].name}` });
+  }
   if (query.data?.startsWith('buy:')) {
     await api.answerCallbackQuery({ callback_query_id: query.id });
     return sendInvoice(query.from.id, query.data.slice(4));

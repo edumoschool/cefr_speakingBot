@@ -111,3 +111,7 @@ async function notify(chatId, text, withButton) {
     console.warn('notify failed', e.description ?? String(e)); // user may have blocked the bot
   }
 }
+
+export async function setFeedbackLang(userId, lang) {
+  await db.run(sql`UPDATE users SET feedback_lang = ${lang} WHERE id = ${userId}`);
+}

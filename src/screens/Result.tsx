@@ -4,8 +4,16 @@ import {
 } from '@ionic/react';
 import { CRITERIA_NAMES, levelColor } from '../levels';
 import type { MockResult } from '../types';
+import { IonIcon } from '@ionic/react';
+import { shareSocialOutline } from 'ionicons/icons';
+import { openTelegramLink } from '../telegram';
 
-export function Result({ result: r, onHome }: { result: MockResult; onHome: () => void }) {
+export function Result({ result: r, onHome, shareLink }: { result: MockResult; onHome: () => void; shareLink?: string }) {
+  // Growth loop: the shared post carries the student's own referral link.
+  const share = () => {
+    const text = `🎤 I scored ${r.score}/75 (${r.level}) on a Multilevel speaking mock with instant AI feedback. Try one free:`;
+    openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(shareLink ?? '')}&text=${encodeURIComponent(text)}`);
+  };
   return (
     <IonPage>
       <IonHeader>
@@ -25,6 +33,11 @@ export function Result({ result: r, onHome }: { result: MockResult; onHome: () =
               Level <IonBadge color={levelColor(r.level)}>{r.level}</IonBadge>
             </p>
             <p className="hint">B1 38–50 · B2 51–64 · C1 65–75</p>
+            {shareLink && (
+              <IonButton fill="outline" size="small" onClick={share} data-testid="share-result">
+                <IonIcon slot="start" icon={shareSocialOutline} /> Share my result
+              </IonButton>
+            )}
           </IonCardContent>
         </IonCard>
 

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { allTests, buildSteps, getTest, modelAnswer, pickTest, publicTest } from '../tgcloud/lib/exam.js';
+import { existsSync } from 'node:fs';
+import { allTests, buildSteps, getTest, modelAnswer, pickTest, publicTest, spokenText } from '../tgcloud/lib/exam.js';
+import AUDIO from '../tgcloud/lib/audio-manifest.js';
 import { computeMetrics } from '../tgcloud/lib/metrics.js';
 import { cefrFromScore, lengthCap, scorePart, totalScore } from '../tgcloud/lib/scoring.js';
 import { base64ToBytes, concatBytes, newId, parseRefPayload } from '../tgcloud/lib/util.js';
@@ -81,4 +83,15 @@ test('short answers cap fluency and task response; silence scores zero', () => {
   assert.equal(scorePart(c1, 0, 120).points, 0);
   assert.equal(scorePart(null, 50, 30).points, 0);
   assert.equal(lengthCap(0, 30), 'none');
+});
+
+// Active once scripts/generate-audio.mjs has filled the manifest.
+test('every question has an examiner clip that exists in public/audio', { skip: Object.keys(AUDIO).length === 0 && 'audio not generated yet' }, () => {
+  for (const t of allTests()) {
+    for (const step of publicTest(t).steps) {
+      assert.ok(step.audio, `${t.id} ${step.key} has no clip for: ${spokenText(step)}`);
+      assert.ok(existsSync(`public${step.audio}`), `missing file public${step.audio}`);
+    }
+  }
+  assert.equal(Object.keys(AUDIO).length, new Set(allTests().flatMap((t) => buildSteps(t).map(spokenText))).size);
 });

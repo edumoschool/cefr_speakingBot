@@ -20,14 +20,15 @@ export default async function (input, ctx) {
   const user = await getUser(from.id);
   botUsername ??= (await api.getMe()).username;
 
-  const history = await db.all(sql`SELECT id, test_id, score, level, created_at FROM sessions
-                                   WHERE user_id = ${from.id} AND status = 'done' ORDER BY created_at DESC LIMIT 20`);
+  const history = await db.all(sql`SELECT id, test_id, score, level, created_at, json_extract(result, '$.criteria') AS criteria
+                                   FROM sessions WHERE user_id = ${from.id} AND status = 'done' ORDER BY created_at DESC LIMIT 20`);
   const per = REFERRALS_PER_ATTEMPT;
   return {
     user: { id: from.id, firstName: user.first_name, attempts: user.attempts },
     isMember,
     channelUrl: CHANNEL_URL,
     botUsername,
+    feedbackLang: user.feedback_lang,
     shop: (await paymentsEnabled()) ? STAR_PACKS : null,
     referral: {
       link: `https://t.me/${botUsername}?start=ref_${from.id}`,
@@ -38,6 +39,9 @@ export default async function (input, ctx) {
     active: active
       ? { id: active.id, status: isExpired(active) ? 'grading' : active.status, testTitle: getTest(active.test_id)?.title, answered: await answeredKeys(active.id) }
       : null,
-    history: history.map((h) => ({ id: h.id, title: getTest(h.test_id)?.title ?? h.test_id, score: h.score, level: h.level, date: h.created_at })),
+    history: history.map((h) => ({
+      id: h.id, title: getTest(h.test_id)?.title ?? h.test_id, score: h.score, level: h.level, date: h.created_at,
+      criteria: h.criteria ? JSON.parse(h.criteria) : null,
+    })),
   };
 }

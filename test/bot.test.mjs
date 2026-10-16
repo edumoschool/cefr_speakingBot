@@ -16,6 +16,7 @@ import finishMock from '../tgcloud/endpoints/finish_mock.js';
 import getResult from '../tgcloud/endpoints/get_result.js';
 import createInvoice from '../tgcloud/endpoints/create_invoice.js';
 import onPreCheckout from '../tgcloud/handlers/pre_checkout_query.js';
+import setPrefs from '../tgcloud/endpoints/set_prefs.js';
 import { CHANNEL_ID } from '../tgcloud/lib/config.js';
 
 const ctx = (id, extra = {}) => ({ initData: { user: { id, first_name: `U${id}` }, ...extra } });
@@ -358,4 +359,50 @@ test('stars purchase: invoice, pre-checkout validation, credited exactly once, a
   assert.equal(q1("SELECT status FROM payments WHERE charge_id = 'charge-1'").status, 'refunded');
   await onMessage(msg(ADMIN_IDS[0], '/refund charge-1'));
   assert.match(lastSent('sendMessage').params.text, /Already refunded/);
+});
+
+// ---- feedback language, progress history
+test('feedback language: saved per user and passed to the examiner prompt', async () => {
+  fake.channelMembers = new Set([1300]);
+  assert.equal((await me({}, ctx(1300))).feedbackLang, 'en');
+  await assert.rejects(setPrefs({ lang: 'de' }, ctx(1300)), (e) => e.parameters.code === 'BAD_REQUEST');
+  await setPrefs({ lang: 'uz' }, ctx(1300));
+  assert.equal((await me({}, ctx(1300))).feedbackLang, 'uz');
+  await onCallback({ id: 'cb', from: { id: 1300 }, data: 'lang:ru' });
+  assert.equal((await me({}, ctx(1300))).feedbackLang, 'ru');
+
+  const prompts = [];
+  const realFetch = fake.fetch;
+  fake.fetch = async (url, init) => {
+    if (url.includes('openai')) prompts.push(JSON.parse(init.body).messages[0].content);
+    return realFetch(url, init);
+  };
+  const { session } = await startMock({}, ctx(1300));
+  const b64 = Buffer.alloc(6000, 7).toString('base64');
+  await uploadAnswer({ session: session.id, key: 'p1_1_1', index: 0, total: 1, mime: 'audio/webm', data: b64 }, ctx(1300));
+  await finishMock({ session: session.id }, ctx(1300));
+  fake.fetch = realFetch;
+  assert.ok(prompts.length >= 2);
+  assert.ok(prompts.every((p) => p.includes('LANGUAGE: write every explanation') && p.includes('Russian')));
+
+  // progress: finished mocks come back with their criteria
+  const h = (await me({}, ctx(1300))).history;
+  assert.equal(h.length, 1);
+  assert.deepEqual(Object.keys(h[0].criteria).sort(), ['fluency_coherence', 'grammar', 'lexical_resource', 'pronunciation', 'task_response']);
+});
+
+test('english feedback adds no language rule', async () => {
+  fake.channelMembers = new Set([1400]);
+  await me({}, ctx(1400));
+  const prompts = [];
+  const realFetch = fake.fetch;
+  fake.fetch = async (url, init) => {
+    if (url.includes('openai')) prompts.push(JSON.parse(init.body).messages[0].content);
+    return realFetch(url, init);
+  };
+  const { session } = await startMock({}, ctx(1400));
+  await uploadAnswer({ session: session.id, key: 'p1_1_1', index: 0, total: 1, mime: 'audio/webm', data: Buffer.alloc(6000, 7).toString('base64') }, ctx(1400));
+  await finishMock({ session: session.id }, ctx(1400));
+  fake.fetch = realFetch;
+  assert.ok(prompts.length >= 2 && prompts.every((p) => !p.includes('LANGUAGE:')));
 });

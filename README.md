@@ -11,7 +11,11 @@ score out of 75, a CEFR level (B1 / B2 / C1) and detailed feedback.
 - **Two ways to answer**: record in the Mini App, or take the same mock **in the bot chat with voice messages** (`/voice`).
   The chat option is a fallback for phones where the Mini App can't use the microphone.
 - **Optional paid attempts with Telegram Stars**: packs set in `tgcloud/lib/config.js`, **off until an admin sends `/payments on`**.
-- 34 complete mocks taken from your PDFs, with 102 exam pictures and model answers for the 14 Mock Book tests. There is also an EN/UZ/RU topic vocabulary list.
+- **Examiner voice**: every question is read aloud by a pre-recorded examiner (229 clips, OpenAI TTS), and preparation time starts when the examiner stops.
+- **Feedback in English, O'zbekcha or Русский** (Mini App or `/lang`). Corrections and better word choices stay in English.
+- **Progress tracking**: a score trend across mocks with the B1/B2/C1 thresholds, and the change in each criterion since the last mock.
+- **Share my result**: posts the score together with the student's referral link.
+- 34 complete mocks taken from your PDFs, with 102 exam pictures and model answers for the 14 Mock Book tests.
 
 ## Project layout
 
@@ -23,10 +27,10 @@ tgcloud/                     ← deployed to Telegram Serverless (runs in a V8 i
   handlers/chat_member.js    channel join events → referral credit
   handlers/pre_checkout_query.js  Stars payment validation
   endpoints/                 called by the Mini App as POST /api/<name>
-    me · start_mock · upload_answer · grade_part · finish_mock · get_result · create_invoice
+    me · start_mock · upload_answer · grade_part · finish_mock · get_result · create_invoice · set_prefs
   lib/                       config, exam structure, scoring, Deepgram, OpenAI, sessions, users, question bank
 src/                         React + Ionic Mini App (Vite) → built to dist/ → hosted by tgcloud
-public/img, public/data      exam pictures and vocabulary
+public/img, public/audio     exam pictures and examiner voice clips (scripts/generate-audio.mjs)
 dev/                         local stand-in for the platform `sdk` (node:sqlite) + dev server; not deployed
 test/                        unit tests + tests that run the real handlers/endpoints locally
 ```
@@ -93,7 +97,7 @@ Then, in Telegram:
    - `/setup https://app<id>.tgcloud.ai/` sets the Mini App URL, the menu button and the command list, and checks the channel admin rights.
 3. Optionally, set the Mini App in @BotFather (`/newapp` or Main Mini App) with the same URL, so that `t.me/<bot>/<app>?startapp=ref_<id>` also works.
 
-User commands: `/start`, `/voice` (mock in chat), `/finish`, `/referral`, `/balance`, `/buy`, `/paysupport`.
+User commands: `/start`, `/voice` (mock in chat), `/finish`, `/referral`, `/balance`, `/lang`, `/buy`, `/paysupport`.
 Admin commands: `/stats`, `/grant <userId> <n>`, `/payments on|off`, `/refund <charge_id>`, `/setkey`, `/setup`.
 Before turning payments on, set `SUPPORT_CONTACT` and review `STAR_PACKS` in `tgcloud/lib/config.js`. Schema changes: edit `tgcloud/schema.js`, then run `npm run deploy` and `npx tgcloud migrate`.
 
@@ -109,6 +113,18 @@ npm run dev                                # Vite hot reload on :5173, proxies /
 `dev/sdk/` mimics the parts of the platform `sdk` this project uses: SQLite through `node:sqlite`, a recorded Bot API, and `fetch`.
 It is a local testing aid, not the platform. On Telegram itself the endpoints use the platform's verified `ctx.initData`.
 
+## Examiner voice
+
+`public/audio/` holds one MP3 per distinct question text (32 kbps mono, about 5 MB in total), and
+`tgcloud/lib/audio-manifest.js` maps each text to its clip. After adding or editing questions, regenerate them.
+Existing clips are reused, so only new questions cost anything (needs ffmpeg):
+
+```bash
+OPENAI_API_KEY=sk-... node scripts/generate-audio.mjs   # TTS_VOICE=sage by default
+```
+
+A test fails if any question is missing its clip.
+
 ## Cost per mock (rough)
 
 A mock has about 10 minutes of speech. Deepgram nova-3 costs roughly $0.04 for that, and the 4 + 1 short gpt-5.4-mini calls cost about $0.01. That comes to **about $0.05 per mock**.
@@ -116,6 +132,5 @@ A mock has about 10 minutes of speech. Deepgram nova-3 costs roughly $0.04 for t
 ## Roadmap ideas
 
 - **Stronger referral anti-fraud**: credit a referral only after the friend finishes their free mock, or re-check later that they're still in the channel.
-- **Examiner voice**: pre-generated question audio (Deepgram Aura / OpenAI TTS) served from `dist/`, instead of browser speech synthesis.
 - **Part drills** (for example Part 3 only) for 1/4 attempt, and a weekly leaderboard posted to the channel.
 - **Calibration**: have teachers score about 50 real recordings and tune `LEVEL_POINTS` / `PART_WEIGHTS` in `tgcloud/lib/scoring.js`.

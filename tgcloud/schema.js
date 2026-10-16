@@ -12,6 +12,7 @@ export const users = table('users', {
   refQualified: boolean('ref_qualified').notNull().default(false), // counted for their referrer
   refQualifiedCount: integer('ref_qualified_count').notNull().default(0), // my referrals who joined
   isMember: boolean('is_member').notNull().default(false),
+  feedbackLang: text('feedback_lang').notNull().default('en'), // en | uz | ru
   blocked: boolean('blocked').notNull().default(false),
   createdAt: integer('created_at').notNull().default(sql`(unixepoch())`),
   lastSeenAt: integer('last_seen_at').notNull().default(sql`(unixepoch())`),

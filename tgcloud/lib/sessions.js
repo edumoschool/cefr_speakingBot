@@ -41,6 +41,11 @@ export async function settleExpired(session) {
   return null;
 }
 
+async function feedbackLang(userId) {
+  const u = await db.get(sql`SELECT feedback_lang FROM users WHERE id = ${userId}`);
+  return u?.feedback_lang ?? 'en';
+}
+
 export async function answeredKeys(sessionId) {
   const rows = await db.all(sql`SELECT step_key FROM answers WHERE session_id = ${sessionId}`);
   return rows.map((r) => r.step_key);
@@ -192,7 +197,7 @@ export async function gradeSessionPart(session, part) {
   }
   try {
     const answers = await partAnswers(session, part);
-    const result = answers.length ? await llmGradePart(part, answers) : null;
+    const result = answers.length ? await llmGradePart(part, answers, await feedbackLang(session.user_id)) : null;
     await db.run(sql`UPDATE part_grades SET status = 'done', result = ${JSON.stringify(result)}, updated_at = unixepoch()
                      WHERE session_id = ${session.id} AND part = ${part}`);
     return result;
@@ -233,7 +238,7 @@ export async function finishSession(id, userId) {
       steps.push(...answers);
     }
     const total = totalScore(parts);
-    const summary = await summarize(parts, total.score, total.level);
+    const summary = await summarize(parts, total.score, total.level, await feedbackLang(userId));
     const result = buildResult(test, parts, steps, total, summary);
     await db.run(sql`UPDATE sessions SET status = 'done', score = ${total.score}, level = ${total.level},
                      result = ${JSON.stringify(result)}, finished_at = unixepoch() WHERE id = ${id}`);

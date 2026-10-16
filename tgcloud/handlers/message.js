@@ -66,6 +66,16 @@ Please include the payment code from your receipt. Unused purchases can be refun
       } catch (e) {
         return api.sendMessage({ chat_id: from.id, text: `Refund failed: ${e.description ?? e.message}` });
       }
+    case '/lang':
+      return api.sendMessage({
+        chat_id: from.id,
+        text: '🌐 Feedback language / Fikr-mulohaza tili / Язык отзыва:',
+        reply_markup: { inline_keyboard: [[
+          { text: 'English', callback_data: 'lang:en' },
+          { text: "O'zbekcha", callback_data: 'lang:uz' },
+          { text: 'Русский', callback_data: 'lang:ru' },
+        ]] },
+      });
     case '/voice':
       return startChatMock(from.id);
     case '/finish':
@@ -155,6 +165,7 @@ async function setup(chat_id, url) {
       { command: 'start', description: 'Open the speaking mock' },
       { command: 'voice', description: 'Take the mock here in chat with voice messages' },
       { command: 'referral', description: 'Invite friends and earn free mocks' },
+      { command: 'lang', description: 'Feedback language: English / Oʻzbekcha / Русский' },
       { command: 'buy', description: 'Get more mocks with Telegram Stars' },
       { command: 'paysupport', description: 'Help with a payment' },
       { command: 'balance', description: 'How many mocks I have left' },

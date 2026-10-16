@@ -7,7 +7,8 @@ export interface Me {
   shop: { id: string; attempts: number; stars: number }[] | null;
   referral: { link: string; qualified: number; per: number; progress: number };
   active: { id: string; status: 'in_progress' | 'grading'; testTitle?: string; answered: string[] } | null;
-  history: { id: string; title: string; score: number; level: string; date: number }[];
+  history: { id: string; title: string; score: number; level: string; date: number; criteria: Record<string, number> | null }[];
+  feedbackLang: 'en' | 'uz' | 'ru';
 }
 
 export type PartId = '1.1' | '1.2' | '2' | '3';
@@ -21,6 +22,8 @@ export interface Step {
   images?: string[];
   bullets?: string[];
   table?: { statement: string; for: string[]; against: string[] };
+  /** Pre-recorded examiner voice for this question. */
+  audio?: string;
 }
 
 export interface TestView {
@@ -69,8 +72,3 @@ export interface MockResult {
   }[];
 }
 
-export interface VocabPart {
-  part: number;
-  title: string;
-  words: { en: string; uz: string; ru: string }[];
-}

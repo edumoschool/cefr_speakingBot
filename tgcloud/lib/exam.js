@@ -1,6 +1,7 @@
 // Exam structure: turns a question-bank entry into the timed steps the Mini App runs.
 // Pure module (no sdk imports) so it can be unit-tested in Node.
 import QUESTIONS from './questions.js';
+import AUDIO from './audio-manifest.js';
 
 /** Official Multilevel timings (seconds). */
 export const TIMING = {
@@ -40,9 +41,20 @@ export function buildSteps(t) {
   return steps;
 }
 
-/** The test as sent to the Mini App (no model answers). */
+/** What the examiner says for a step (also the key of the pre-generated audio). */
+export function spokenText(step) {
+  if (step.part === '2') return `Part 2. ${(step.bullets ?? []).join(' ')}`;
+  if (step.part === '3') return `Part 3. Look at the statement: ${step.table.statement} Use the arguments for and against.`;
+  return step.question;
+}
+
+/** The test as sent to the Mini App (no model answers), with the examiner's voice clip per step. */
 export function publicTest(t) {
-  return { id: t.id, title: t.title, topics: t.topics, steps: buildSteps(t) };
+  const steps = buildSteps(t).map((s) => {
+    const file = AUDIO[spokenText(s)];
+    return file ? { ...s, audio: `/audio/${file}` } : s;
+  });
+  return { id: t.id, title: t.title, topics: t.topics, steps };
 }
 
 /** Picks a test the user hasn't taken; once all are used, a least-taken one. */

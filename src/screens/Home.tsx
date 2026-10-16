@@ -1,22 +1,34 @@
 import {
   IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonHeader,
-  IonIcon, IonItem, IonLabel, IonList, IonNote, IonPage, IonTitle, IonToolbar, useIonToast,
+  IonIcon, IonItem, IonLabel, IonList, IonNote, IonPage, IonSegment, IonSegmentButton, IonTitle, IonToolbar, useIonToast,
 } from '@ionic/react';
-import { bookOutline, copyOutline, micOutline, shareSocialOutline, starOutline } from 'ionicons/icons';
+import { copyOutline, micOutline, shareSocialOutline, starOutline } from 'ionicons/icons';
 import { useState } from 'react';
 import { api } from '../api';
+import { ProgressCard } from './Progress';
 import { levelColor } from '../levels';
 import { haptic, openTelegramLink, tg } from '../telegram';
 import type { Me } from '../types';
 
 const SHARE_TEXT = '🎤 Practise the Multilevel speaking exam with instant AI scoring — your first mock is free!';
 
-export function Home({ me, onStart, onOpenResult, onVocab, onRefresh }: { me: Me; onStart: () => void; onOpenResult: (id: string) => void; onVocab: () => void; onRefresh: () => Promise<Me | undefined> }) {
+export function Home({ me, onStart, onOpenResult, onRefresh }: { me: Me; onStart: () => void; onOpenResult: (id: string) => void; onRefresh: () => Promise<Me | undefined> }) {
   const [toast] = useIonToast();
   const r = me.referral;
   const canStart = !!me.active || me.user.attempts > 0;
 
   const [buying, setBuying] = useState<string | null>(null);
+  const [lang, setLang] = useState(me.feedbackLang);
+  const changeLang = async (value: string) => {
+    const prev = lang;
+    setLang(value as Me['feedbackLang']);
+    try {
+      await api.setPrefs(value);
+    } catch {
+      setLang(prev);
+      toast({ message: 'Could not save the language. Try again.', duration: 2000, position: 'top', color: 'danger' });
+    }
+  };
 
   // Stars purchase: the credit arrives via the bot's successful_payment update, so poll briefly.
   const buy = async (packId: string) => {
@@ -114,6 +126,21 @@ export function Home({ me, onStart, onOpenResult, onVocab, onRefresh }: { me: Me
           </IonCardContent>
         </IonCard>
 
+        <ProgressCard history={me.history} />
+
+        <IonCard>
+          <IonCardHeader>
+            <IonCardSubtitle>Feedback language · Fikr-mulohaza tili · Язык отзыва</IonCardSubtitle>
+          </IonCardHeader>
+          <IonCardContent>
+            <IonSegment value={lang} onIonChange={(e) => changeLang(String(e.detail.value))} data-testid="lang">
+              <IonSegmentButton value="en"><IonLabel>English</IonLabel></IonSegmentButton>
+              <IonSegmentButton value="uz"><IonLabel>O'zbekcha</IonLabel></IonSegmentButton>
+              <IonSegmentButton value="ru"><IonLabel>Русский</IonLabel></IonSegmentButton>
+            </IonSegment>
+          </IonCardContent>
+        </IonCard>
+
         {me.shop && (
           <IonCard>
             <IonCardHeader>
@@ -145,10 +172,6 @@ export function Home({ me, onStart, onOpenResult, onVocab, onRefresh }: { me: Me
             <IonItem><IonLabel className="ion-text-wrap"><b>Part 1.2</b> · compare 2 pictures (45 s) + 2 questions (30 s)</IonLabel></IonItem>
             <IonItem><IonLabel><b>Part 2</b> · cue card · 1 min prep · 2 min talk</IonLabel></IonItem>
             <IonItem><IonLabel><b>Part 3</b> · for/against · 1 min prep · 2 min talk</IonLabel></IonItem>
-            <IonItem button detail onClick={onVocab}>
-              <IonIcon slot="start" icon={bookOutline} color="primary" />
-              <IonLabel color="primary">Topic vocabulary (EN · UZ · RU)</IonLabel>
-            </IonItem>
           </IonList>
         </IonCard>
 

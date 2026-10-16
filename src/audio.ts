@@ -42,6 +42,47 @@ export function beep() {
   } catch {}
 }
 
+// Examiner voice: one <audio> element, unlocked by the user's tap on "Begin" so
+// later clips may play without a gesture (iOS/WebView autoplay rules).
+const examiner = typeof Audio !== 'undefined' ? new Audio() : null;
+let finishClip: (() => void) | null = null;
+
+export function unlockAudio() {
+  if (!examiner) return;
+  examiner.src = silentWav();
+  examiner.play().catch(() => undefined);
+}
+
+/** Plays a clip and resolves when it ends, fails, or stopClip() is called. */
+export function playClip(src: string): Promise<void> {
+  return new Promise((resolve) => {
+    if (!examiner) return resolve();
+    const done = () => {
+      clearTimeout(guard);
+      examiner.onended = examiner.onerror = null;
+      finishClip = null;
+      resolve();
+    };
+    const guard = setTimeout(done, 45_000);
+    finishClip = done;
+    examiner.onended = done;
+    examiner.onerror = done;
+    examiner.src = src;
+    examiner.play().catch(done);
+  });
+}
+
+export function stopClip() {
+  examiner?.pause();
+  finishClip?.();
+}
+
+function silentWav() {
+  // 44-byte WAV header + 2 silent samples, 8 kHz mono 8-bit.
+  const bytes = [82, 73, 70, 70, 38, 0, 0, 0, 87, 65, 86, 69, 102, 109, 116, 32, 16, 0, 0, 0, 1, 0, 1, 0, 64, 31, 0, 0, 64, 31, 0, 0, 1, 0, 8, 0, 100, 97, 116, 97, 2, 0, 0, 0, 128, 128];
+  return 'data:audio/wav;base64,' + btoa(String.fromCharCode(...bytes));
+}
+
 export function speak(text: string) {
   if (!('speechSynthesis' in window)) return;
   try {

@@ -9,7 +9,6 @@ import { Grading } from './screens/Grading';
 import { Home } from './screens/Home';
 import { Ready } from './screens/Ready';
 import { Result } from './screens/Result';
-import { Vocab } from './screens/Vocab';
 import { Message } from './screens/Message';
 
 type Screen =
@@ -20,8 +19,7 @@ type Screen =
   | { name: 'ready' }
   | { name: 'exam'; start: StartResponse; stream: MediaStream; startIndex: number }
   | { name: 'grading'; sessionId: string }
-  | { name: 'result'; result: MockResult }
-  | { name: 'vocab' };
+  | { name: 'result'; result: MockResult };
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'loading' });
@@ -55,7 +53,7 @@ export default function App() {
   // Telegram's native back button on secondary screens.
   useEffect(() => {
     if (!tg) return;
-    const back = ['result', 'vocab', 'ready'].includes(screen.name);
+    const back = ['result', 'ready'].includes(screen.name);
     const onBack = () => setScreen({ name: 'home' });
     if (back) {
       tg.BackButton.show();
@@ -114,7 +112,7 @@ export default function App() {
       case 'gate':
         return <Gate channelUrl={me?.channelUrl ?? ''} onCheck={loadHome} />;
       case 'home':
-        return me && <Home me={me} onStart={onStart} onOpenResult={openResult} onVocab={() => setScreen({ name: 'vocab' })} onRefresh={refreshMe} />;
+        return me && <Home me={me} onStart={onStart} onOpenResult={openResult} onRefresh={refreshMe} />;
       case 'ready':
         return <Ready resuming={!!me?.active} botUsername={me?.botUsername ?? ''} onBegin={begin} onBack={() => setScreen({ name: 'home' })} />;
       case 'exam':
@@ -144,9 +142,7 @@ export default function App() {
           />
         );
       case 'result':
-        return <Result result={screen.result} onHome={() => setScreen({ name: 'home' })} />;
-      case 'vocab':
-        return <Vocab onBack={() => setScreen({ name: 'home' })} />;
+        return <Result result={screen.result} shareLink={me?.referral.link} onHome={() => setScreen({ name: 'home' })} />;
     }
   })();
 

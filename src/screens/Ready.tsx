@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { IonButton, IonContent, IonItem, IonList, IonPage, IonToggle, useIonAlert } from '@ionic/react';
 import { openTelegramLink, tg } from '../telegram';
+import { unlockAudio } from '../audio';
 
 export const prefs = { readAloud: true };
 
@@ -10,6 +11,7 @@ export function Ready({ resuming, botUsername, onBegin, onBack }: { resuming: bo
 
   const begin = async () => {
     prefs.readAloud = readAloud;
+    if (readAloud) unlockAudio(); // must happen inside this tap
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
       onBegin(stream);
@@ -35,13 +37,13 @@ export function Ready({ resuming, botUsername, onBegin, onBack }: { resuming: bo
           <div className="big-emoji">🎙️</div>
           <h1>{resuming ? 'Continue your mock' : 'Ready to start?'}</h1>
           <p className="hint">
-            Find a quiet place. Each question has a short preparation time, then recording starts automatically with a beep. Speak until
+            Find a quiet place. The examiner reads each question, then you get a short preparation time and recording starts automatically with a beep. Speak until
             the timer ends, or tap “Finish answer”.
           </p>
           <IonList inset style={{ width: '100%' }}>
             <IonItem>
               <IonToggle checked={readAloud} onIonChange={(e) => setReadAloud(e.detail.checked)}>
-                Read questions aloud
+                Examiner reads the questions aloud
               </IonToggle>
             </IonItem>
           </IonList>

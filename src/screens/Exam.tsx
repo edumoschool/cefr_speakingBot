@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { IonButton, IonContent, IonFooter, IonHeader, IonNote, IonPage, IonProgressBar, IonTitle, IonToolbar } from '@ionic/react';
-import { beep, speak, startRecording, stopSpeaking, uploads } from '../audio';
+import { beep, playClip, speak, startRecording, stopClip, stopSpeaking, uploads } from '../audio';
 import { haptic } from '../telegram';
 import type { Step, TestView } from '../types';
 import { prefs } from './Ready';
@@ -17,7 +17,7 @@ interface Props {
 export function Exam({ sessionId, test, stream, startIndex, onDone }: Props) {
   const steps = test.steps;
   const [index, setIndex] = useState(startIndex);
-  const [phase, setPhase] = useState<'prep' | 'rec'>('prep');
+  const [phase, setPhase] = useState<'listen' | 'prep' | 'rec'>('prep');
   const [left, setLeft] = useState(steps[startIndex].prepSec);
   const [total, setTotal] = useState(steps[startIndex].prepSec);
   const [pending, setPending] = useState(0);
@@ -59,8 +59,17 @@ export function Exam({ sessionId, test, stream, startIndex, onDone }: Props) {
       for (let i = startIndex; i < steps.length && !cancelled; i++) {
         const step = steps[i];
         setIndex(i);
+        // Like the real exam: the examiner reads the question, then preparation starts.
+        if (prefs.readAloud && step.audio) {
+          setPhase('listen');
+          setLeft(step.prepSec);
+          setTotal(step.prepSec);
+          skip.current = stopClip;
+          await playClip(step.audio);
+          skip.current = null;
+          if (cancelled) return;
+        } else if (prefs.readAloud) speak(spoken(step));
         setPhase('prep');
-        if (prefs.readAloud) speak(spoken(step));
         await countdown(step.prepSec);
         stopSpeaking();
         if (cancelled) return;
@@ -83,6 +92,7 @@ export function Exam({ sessionId, test, stream, startIndex, onDone }: Props) {
     return () => {
       cancelled = true;
       skip.current?.();
+      stopClip();
       stopSpeaking();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -110,7 +120,7 @@ export function Exam({ sessionId, test, stream, startIndex, onDone }: Props) {
             <circle className="bg" cx="60" cy="60" r="52" />
             <circle className="fg" cx="60" cy="60" r="52" style={{ strokeDashoffset: 326.7 * (1 - left / total) }} />
           </svg>
-          <div className="phase">{rec ? 'Speak now' : 'Preparation'}</div>
+          <div className="phase">{rec ? 'Speak now' : phase === 'listen' ? '🔊 Listen' : 'Preparation'}</div>
           <div className="time">
             {Math.floor(secs / 60)}:{String(secs % 60).padStart(2, '0')}
           </div>
@@ -118,7 +128,7 @@ export function Exam({ sessionId, test, stream, startIndex, onDone }: Props) {
       </IonContent>
       <IonFooter className="ion-padding">
         <IonButton expand="block" color={rec ? 'danger' : 'primary'} onClick={() => skip.current?.()} data-testid="exam-next">
-          {rec ? 'Finish answer' : 'Start speaking now'}
+          {rec ? 'Finish answer' : phase === 'listen' ? 'Skip to preparation' : 'Start speaking now'}
         </IonButton>
         <p className="hint ion-text-center" style={{ minHeight: 18, margin: '6px 0 0' }}>
           {pending > 0 ? 'Saving your answers in the background…' : ''}
