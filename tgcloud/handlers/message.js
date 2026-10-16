@@ -4,9 +4,8 @@ import { api } from 'sdk';
 import { onAdminButton, isAdmin, sendAdminPanel, statsText } from '../lib/admin.js';
 import { sendBalance, sendInvite, sendLangPicker, sendMenu, sendPaySupport, sendTop, sendWelcome, setCommandMenus } from '../lib/botui.js';
 import { finishInChat, onVoice, startChatMock } from '../lib/chatmode.js';
-import { CHANNEL_ID } from '../lib/config.js';
+import { APP_URL, CHANNEL_ID } from '../lib/config.js';
 import { creditPayment, packsKeyboard, paymentsEnabled, refundPayment, setPaymentsEnabled } from '../lib/payments.js';
-import { KEYS, setSetting } from '../lib/settings.js';
 import { tFor } from '../lib/texts.js';
 import { grantAttempts, refreshMembership, upsertUser } from '../lib/users.js';
 import { parseRefPayload } from '../lib/util.js';
@@ -56,10 +55,8 @@ export default async function (message) {
     switch (cmd) {
       case '/admin':
         return sendAdminPanel(from.id);
-      case '/setkey':
-        return setKey(message, args);
       case '/setup':
-        return setup(from.id, args[0]);
+        return setup(from.id);
       case '/stats':
         return api.sendMessage({ chat_id: from.id, parse_mode: 'HTML', text: await statsText() });
       case '/grant':
@@ -90,29 +87,12 @@ async function sendShop(userId) {
   return api.sendMessage({ chat_id: userId, text: t('buyTitle'), reply_markup: packsKeyboard() });
 }
 
-// /setkey openai sk-...   |   /setkey deepgram <key>
-async function setKey(message, [name, value]) {
-  const chat_id = message.chat.id;
-  // Remove the key from the chat history first, whatever happens next.
-  try {
-    await api.deleteMessage({ chat_id, message_id: message.message_id });
-  } catch {}
-  if (!['openai', 'deepgram'].includes(name) || !value) {
-    return api.sendMessage({ chat_id, text: 'Send: /setkey openai YOUR_KEY  or  /setkey deepgram YOUR_KEY\n(the message is deleted automatically)' });
+// /setup — installs the Mini App menu button and the command lists (link from .env APP_URL).
+async function setup(chat_id) {
+  if (!APP_URL) {
+    return api.sendMessage({ chat_id, text: 'APP_URL is empty. Put the Mini App link printed by "npm run deploy" into .env (APP_URL=...), deploy again, then send /setup.' });
   }
-  await setSetting(KEYS[name], value);
-  await api.sendMessage({ chat_id, text: `✅ ${name} key saved (…${value.slice(-4)}).` });
-  return sendAdminPanel(chat_id);
-}
-
-// /setup https://app123.tgcloud.ai/  — the Mini App link printed by deploy
-async function setup(chat_id, url) {
-  if (!/^https:\/\/\S+$/.test(url ?? '')) {
-    return api.sendMessage({ chat_id, text: 'Send: /setup YOUR_MINI_APP_LINK (printed by "npm run deploy", like https://app123.tgcloud.ai/)' });
-  }
-  const appUrl = url.replace(/\/+$/, '') + '/';
-  await setSetting(KEYS.app_url, appUrl);
-  await api.setChatMenuButton({ menu_button: { type: 'web_app', text: '🎤 Speaking test', web_app: { url: appUrl } } });
+  await api.setChatMenuButton({ menu_button: { type: 'web_app', text: '🎤 Speaking test', web_app: { url: APP_URL } } });
   await setCommandMenus();
   const me = await api.getMe();
   let adminOk = false;
@@ -121,7 +101,9 @@ async function setup(chat_id, url) {
   } catch {}
   await api.sendMessage({
     chat_id,
-    text: `✅ Mini App link saved. The menu button and command lists (EN/UZ/RU) are updated.\n` +
+    text: `✅ Menu button set to ${APP_URL}
+Command lists (EN/UZ/RU) updated.
+` +
       (adminOk ? '✅ The bot is an admin of your channel.' : '⚠️ Make the bot an ADMIN of your channel — otherwise it can’t check who joined.'),
   });
   return sendAdminPanel(chat_id);

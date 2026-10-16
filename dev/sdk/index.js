@@ -12,6 +12,14 @@ export class BotApiError extends Error {
 }
 export class InputFile { constructor(bytes, name, opts = {}) { this.bytes = bytes; this.name = name; this.type = opts.type; } }
 
+/** Multipart body; an InputFile becomes a file part, as on the platform. */
+export class FormData extends globalThis.FormData {
+  append(name, value, filename) {
+    if (value instanceof InputFile) return super.append(name, new Blob([value.bytes], { type: value.type ?? 'application/octet-stream' }), value.name);
+    return filename === undefined ? super.append(name, value) : super.append(name, value, filename);
+  }
+}
+
 export const fake = {
   sent: [], // every Bot API call: { method, params }
   channelMembers: new Set(),

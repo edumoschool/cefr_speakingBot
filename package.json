@@ -3,14 +3,15 @@
   "version": "1.0.0",
   "description": "Multilevel (CEFR) speaking mock \u2014 Telegram Mini App (React + Ionic) on Telegram Serverless, with OpenAI + Deepgram assessment",
   "scripts": {
-    "dev": "vite",
-    "dev:api": "node --no-warnings --import ./dev/register.mjs dev/server.mjs",
+    "dev": "node scripts/build-env.mjs --if-missing && vite",
+    "dev:api": "node scripts/build-env.mjs --if-missing && node --no-warnings --import ./dev/register.mjs dev/server.mjs",
     "build": "tsc -p tsconfig.json && vite build",
-    "test": "node --no-warnings --import ./dev/register.mjs --test test/*.test.mjs",
-    "deploy": "npm run build && tgcloud push",
+    "test": "node scripts/build-env.mjs --if-missing && node --no-warnings --import ./dev/register.mjs --import ./test/setup-env.mjs --test test/*.test.mjs",
+    "deploy": "node scripts/build-env.mjs --strict && npm run build && tgcloud push",
     "migrate": "tgcloud migrate",
     "status": "tgcloud status",
-    "run": "tgcloud run"
+    "run": "tgcloud run",
+    "env": "node scripts/build-env.mjs --strict"
   },
   "repository": {
     "type": "git",

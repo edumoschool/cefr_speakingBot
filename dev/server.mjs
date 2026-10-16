@@ -4,7 +4,7 @@
 //   npm run build && npm run dev:api        → http://localhost:8787/?user=1001
 //   (or `npm run dev` for Vite with hot reload, proxying /api here)
 //
-// Env: OPENAI_API_KEY / DEEPGRAM_API_KEY are copied into the settings table.
+// Env: the same names as .env.example (OPENAI_API_KEY, DEEPGRAM_API_KEY, ELEVENLABS_API_KEY, TRANSCRIBER, …).
 //      FAKE_DEEPGRAM=1 returns a canned transcript (no Deepgram key needed).
 //      LOCAL_DB=dev/.local.db keeps data between restarts (default: in memory).
 //      PAYMENTS=on shows the Stars shop (invoices are faked locally).
@@ -13,14 +13,22 @@ import { createServer } from 'node:http';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { EndpointError, fake } from 'sdk';
-import db, { _database, createSchema } from 'sdk/db';
+// Settings for local runs come from your shell / .env, the same names as .env.example.
+const env = (k, d = '') => process.env[k] ?? d;
+globalThis.__TGCLOUD_ENV__ = {
+  OPENAI_API_KEY: env('OPENAI_API_KEY'), OPENAI_MODEL: env('OPENAI_MODEL', 'gpt-5.4-mini'),
+  TRANSCRIBER: env('TRANSCRIBER', 'deepgram'),
+  DEEPGRAM_API_KEY: env('DEEPGRAM_API_KEY', process.env.FAKE_DEEPGRAM ? 'fake' : ''), DEEPGRAM_MODEL: env('DEEPGRAM_MODEL', 'nova-3'),
+  ELEVENLABS_API_KEY: env('ELEVENLABS_API_KEY'), ELEVENLABS_MODEL: env('ELEVENLABS_MODEL', 'scribe_v2'),
+  CHANNEL_ID: env('CHANNEL_ID', '@dev_channel'), CHANNEL_URL: env('CHANNEL_URL', 'https://t.me/dev_channel'),
+  ADMIN_IDS: env('ADMIN_IDS', '1001').split(',').map(Number), SUPPORT_CONTACT: env('SUPPORT_CONTACT', '@support'),
+  APP_URL: env('APP_URL', 'http://localhost:8787/'),
+};
+const { EndpointError, fake } = await import('sdk');
+const { default: db, _database, createSchema } = await import('sdk/db');
 
 const ROOT = process.cwd();
 createSchema(_database(), await import(pathToFileURL(path.join(ROOT, 'tgcloud/schema.js')).href));
-for (const [env, key] of [['OPENAI_API_KEY', 'openai_api_key'], ['DEEPGRAM_API_KEY', 'deepgram_api_key']]) {
-  if (process.env[env]) await db.run('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', [key, process.env[env]]);
-}
 if (process.env.PAYMENTS === 'on') await db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('payments', 'on')");
 fake.allMembers = true;
 

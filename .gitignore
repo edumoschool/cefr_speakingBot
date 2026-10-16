@@ -3,4 +3,5 @@ node_modules/
 dist/
 dev/.local.db*
 .env
+tgcloud/lib/env.js
 *.log

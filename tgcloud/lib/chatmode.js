@@ -4,10 +4,9 @@
 import { api, EndpointError } from 'sdk';
 import { activeSession, checkOpen, finishSession, gradeSessionPart, isExpired, nextStep, saveAudioAnswer, settleExpired, startSession } from './sessions.js';
 import { getTest, publicTest, sessionSteps } from './exam.js';
-import { getSetting, KEYS } from './settings.js';
 import { openAppKeyboard, refreshMembership } from './users.js';
 import { escapeHtml } from './util.js';
-import { CHANNEL_URL } from './config.js';
+import { APP_URL, CHANNEL_URL } from './config.js';
 import { duration, langOf, levelName, PART_NAMES, tr } from './texts.js';
 
 const GRACE_SEC = 15; // a voice may run this much over the time limit
@@ -55,7 +54,7 @@ export async function sendQuestion(chatId, session, step, lang) {
   const t = tr(lang);
   const steps = sessionSteps(session);
   const n = steps.findIndex((s) => s.key === step.key) + 1;
-  const appUrl = await getSetting(KEYS.app_url);
+  const appUrl = APP_URL;
   const abs = (path) => (appUrl ? appUrl.replace(/\/$/, '') + path : null);
 
   // Pictures come from the hosted Mini App (public URLs Telegram can fetch).

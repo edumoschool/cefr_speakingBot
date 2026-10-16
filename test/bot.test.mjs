@@ -31,7 +31,7 @@ beforeEach(() => {
   createSchema(_database(), schema);
   fake.sent.length = 0;
   fake.channelMembers = new Set();
-  calls.deepgram = calls.openai = 0;
+  calls.deepgram = calls.openai = calls.elevenlabs = 0;
   fake.fetch = async (url, init) => {
     if (url.startsWith('https://api.deepgram.com/')) {
       calls.deepgram++;
@@ -39,6 +39,19 @@ beforeEach(() => {
       const words = 'well i think it depends on the situation because people are different'.split(' ')
         .map((w, i) => ({ word: w, start: i * 0.4, end: i * 0.4 + 0.3, confidence: 0.92 }));
       return Response.json({ results: { channels: [{ alternatives: [{ transcript: 'Well, I think it depends on the situation because people are different.', words }] }] } });
+    }
+    if (url.startsWith('https://api.elevenlabs.io/')) {
+      calls.elevenlabs = (calls.elevenlabs ?? 0) + 1;
+      assert.equal(init.headers['xi-api-key'], 'el-test');
+      assert.ok(init.body instanceof FormData);
+      assert.equal(init.body.get('model_id'), 'scribe_v2');
+      assert.ok(init.body.get('file') instanceof Blob && init.body.get('file').size > 0);
+      const toks = 'Um I think it is a good idea'.split(' ');
+      const words = toks.flatMap((w, i) => [
+        { text: w, start: i * 0.5, end: i * 0.5 + 0.4, type: 'word', logprob: i === 1 ? -2 : -0.05 },
+        { text: ' ', start: i * 0.5 + 0.4, end: i * 0.5 + 0.5, type: 'spacing', logprob: 0 },
+      ]);
+      return Response.json({ language_code: 'eng', language_probability: 0.99, text: 'Um, I think it is a good idea.', words });
     }
     if (url.startsWith('https://api.openai.com/')) {
       calls.openai++;
@@ -53,7 +66,7 @@ beforeEach(() => {
     }
     throw new Error('unexpected fetch ' + url);
   };
-  q1("INSERT INTO settings (key, value) VALUES ('openai_api_key', 'sk-test'), ('deepgram_api_key', 'dg-test'), ('app_url', 'https://app1.tgcloud.ai/')");
+  Object.assign(globalThis.__TGCLOUD_ENV__, { TRANSCRIBER: 'deepgram', DEEPGRAM_API_KEY: 'dg-test', ELEVENLABS_API_KEY: 'el-test' });
 });
 
 test('start: new user gets 1 free attempt and a join prompt when not a member', async () => {
@@ -170,6 +183,7 @@ test('transcription failure keeps chunks so re-sending the last chunk retries', 
   fake.channelMembers = new Set([500]);
   await me({}, ctx(500));
   const { session } = await startMock({}, ctx(500));
+  globalThis.__TGCLOUD_ENV__.ELEVENLABS_API_KEY = ''; // no backup transcriber in this test
   const realFetch = fake.fetch;
   fake.fetch = async (url, init) => (url.includes('deepgram') ? new Response('err', { status: 500 }) : realFetch(url, init));
   await assert.rejects(record(session.id, 'p1_1_1'));
@@ -191,19 +205,16 @@ test('upload validation', async () => {
   await assert.rejects(uploadAnswer({ session: 'x', key: 'p2', index: 0, total: 1, data: 'AAAA' }, ctx(500)), (e) => e.parameters.code === 'BAD_REQUEST');
 });
 
-test('admin commands: /setkey deletes the message, non-admins are ignored', async () => {
+test('admin commands: /grant gives tests; students cannot use admin commands', async () => {
   const { ADMIN_IDS } = await import('../tgcloud/lib/config.js');
   const admin = ADMIN_IDS[0];
-  await onMessage(msg(admin, '/setkey openai sk-new-1234'));
-  assert.equal(q1("SELECT value FROM settings WHERE key = 'openai_api_key'").value, 'sk-new-1234');
-  assert.ok(fake.sent.some((c) => c.method === 'deleteMessage'));
-  await onMessage(msg(999, '/setkey openai sk-evil'));
-  assert.equal(q1("SELECT value FROM settings WHERE key = 'openai_api_key'").value, 'sk-new-1234');
-  await onMessage(msg(admin, '/setup https://app42.tgcloud.ai'));
-  assert.equal(q1("SELECT value FROM settings WHERE key = 'app_url'").value, 'https://app42.tgcloud.ai/');
-  assert.ok(fake.sent.some((c) => c.method === 'setChatMenuButton'));
+  await onMessage(msg(999, '/start'));
+  await onMessage(msg(999, '/grant 999 5'));
+  assert.equal(attempts(999), 1, 'a student cannot grant');
   await onMessage(msg(admin, '/grant 999 2'));
   assert.equal(attempts(999), 3);
+  await onMessage(msg(admin, '/setkey openai sk-x'));
+  assert.ok(!fake.sent.some((c) => c.method === 'deleteMessage'), 'keys are not set from the bot any more');
 });
 
 // ---- chat voice mode (voice messages → api.getFileContent → same pipeline)
@@ -533,7 +544,7 @@ test('chat mode speaks the student language; the exam question stays in English'
   const q = sentTo(2101).at(-1).params.text;
   assert.match(q, /1\.1-qism · O'zingiz haqingizda savollar/);
   assert.match(q, /Tayyorlaning \(5 soniya\)/);
-  assert.match(q, /<b>[A-Z][^<]*\?<\/b>/, 'question text in English');
+  assert.match(q, /<b>[A-Z][^<]*[?.]<\/b>/, 'question text in English');
   assert.equal(lastSent('sendAudio').params.performer, 'Imtihonchi');
 });
 
@@ -542,7 +553,8 @@ test('admin panel: buttons for stats, payments and posting; hidden from students
   const admin = ADMIN_IDS[0];
   await onMessage(msg(admin, '/admin'));
   const panel = sentTo(admin).at(-1).params;
-  assert.match(panel.text, /Admin panel[\s\S]*❌ OpenAI key|Admin panel[\s\S]*✅ OpenAI key/);
+  assert.match(panel.text, /Admin panel[\s\S]*✅ OpenAI[\s\S]*Speech-to-text: <b>Deepgram<\/b> \(backup ready\)/);
+  assert.ok(!/To finish setup/.test(panel.text));
   const data = panel.reply_markup.inline_keyboard.flat().map((b) => b.callback_data);
   assert.deepEqual(data, ['adm:stats', 'adm:board', 'adm:pay', 'adm:grant', 'adm:panel']);
 
@@ -562,8 +574,44 @@ test('admin panel: buttons for stats, payments and posting; hidden from students
 
 test('/setup installs the menu button and command lists in all three languages', async () => {
   const { ADMIN_IDS } = await import('../tgcloud/lib/config.js');
-  await onMessage(msg(ADMIN_IDS[0], '/setup https://app9.tgcloud.ai'));
+  await onMessage(msg(ADMIN_IDS[0], '/setup'));
   const cmds = fake.sent.filter((c) => c.method === 'setMyCommands').map((c) => c.params.language_code ?? 'default');
   assert.deepEqual(cmds, ['default', 'uz', 'ru']);
-  assert.equal(lastSent('setChatMenuButton').params.menu_button.web_app.url, 'https://app9.tgcloud.ai/');
+  assert.equal(lastSent('setChatMenuButton').params.menu_button.web_app.url, 'https://app1.tgcloud.ai/', 'link from .env APP_URL');
+});
+
+// ---- speech-to-text providers
+async function oneAnswer(userId) {
+  fake.channelMembers = new Set([userId]);
+  await me({}, ctx(userId));
+  const { session } = await startMock({}, ctx(userId));
+  await uploadAnswer({ session: session.id, key: 'p1_1_1', index: 0, total: 1, mime: 'audio/ogg;codecs=opus', data: Buffer.alloc(6000, 7).toString('base64') }, ctx(userId));
+  return JSON.parse(q1('SELECT transcript, metrics FROM answers WHERE session_id = ?', session.id).metrics);
+}
+
+test('ElevenLabs as the main transcriber: words, fillers and confidence are mapped', async () => {
+  globalThis.__TGCLOUD_ENV__.TRANSCRIBER = 'elevenlabs';
+  const m = await oneAnswer(3001);
+  assert.equal(m.provider, 'elevenlabs');
+  assert.equal(calls.elevenlabs, 1);
+  assert.equal(calls.deepgram, 0);
+  assert.equal(m.fillers, 1, '"Um" counted as a filler');
+  assert.equal(m.wordCount, 7);
+  assert.deepEqual(m.unclearWords, [], 'only "I" was low-confidence and short words are ignored');
+  assert.ok(m.avgConfidence > 0.8 && m.avgConfidence < 1);
+});
+
+test('falls back to the other transcriber when the main one fails', async () => {
+  const realFetch = fake.fetch;
+  fake.fetch = async (url, init) => (url.includes('deepgram') ? new Response('down', { status: 503 }) : realFetch(url, init));
+  const m = await oneAnswer(3002);
+  fake.fetch = realFetch;
+  assert.equal(m.provider, 'elevenlabs');
+});
+
+test('only the provider with a key is used', async () => {
+  globalThis.__TGCLOUD_ENV__.DEEPGRAM_API_KEY = '';
+  const m = await oneAnswer(3003);
+  assert.equal(m.provider, 'elevenlabs');
+  assert.equal(calls.deepgram, 0);
 });

@@ -1,15 +1,13 @@
 // Student-facing bot screens: welcome, main menu, invite, top list, language.
 // Everything is a button; typed commands still work but nobody has to learn them.
 import { api } from 'sdk';
-import { CHANNEL_URL, REFERRALS_PER_ATTEMPT, SUPPORT_CONTACT } from './config.js';
+import { APP_URL, CHANNEL_URL, REFERRALS_PER_ATTEMPT, SUPPORT_CONTACT } from './config.js';
 import { myWeeklyRank, weeklyTop } from './leaderboard.js';
-import { getSetting, KEYS } from './settings.js';
 import { tFor, levelName } from './texts.js';
 import { getUser } from './users.js';
 
 async function appButton(text, path = '') {
-  const url = await getSetting(KEYS.app_url);
-  return url ? [{ text, web_app: { url: url + path } }] : null;
+  return APP_URL ? [{ text, web_app: { url: APP_URL + path } }] : null;
 }
 
 /** Main menu buttons (inline, under a message). */

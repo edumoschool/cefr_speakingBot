@@ -98,7 +98,7 @@ export const payments = table('payments', {
   userIdx: index('idx_payments_user').on(t.userId),
 }));
 
-// API keys and runtime settings, set by admins from the bot (/setkey, /setup).
+// Runtime switches set by admins from the bot (/admin), e.g. payments on/off. No API keys.
 export const settings = table('settings', {
   key: text('key').primaryKey(),
   value: text('value').notNull(),

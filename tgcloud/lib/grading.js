@@ -1,7 +1,7 @@
 import { fetch } from 'sdk';
 import { OPENAI_MODEL } from './config.js';
 import { CRITERIA, LEVELS } from './scoring.js';
-import { KEYS, requireSetting } from './settings.js';
+import { ENV } from './env.js';
 
 // OpenAI is called over its REST API (npm SDKs can't run on the platform).
 // Each part is graded separately, in the background while the student keeps
@@ -65,7 +65,8 @@ const SUMMARY_SCHEMA = obj({ overall_feedback: str, strengths: arr(str), priorit
 
 async function chat(system, user, schemaName, schema, lang = 'en') {
   system += languageRule(lang);
-  const key = await requireSetting(KEYS.openai, 'OpenAI API key');
+  const key = ENV.OPENAI_API_KEY;
+  if (!key) throw new Error('OPENAI_API_KEY is not set in .env');
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },

@@ -1,7 +1,6 @@
 import { db, api } from 'sdk';
 import { sql } from 'sdk/db';
-import { CHANNEL_ID, FREE_ATTEMPTS, REFERRALS_PER_ATTEMPT } from './config.js';
-import { getSetting, KEYS } from './settings.js';
+import { APP_URL, CHANNEL_ID, FREE_ATTEMPTS, REFERRALS_PER_ATTEMPT } from './config.js';
 import { tFor } from './texts.js';
 import { returning } from './db.js';
 
@@ -110,8 +109,7 @@ export async function grantAttempts(userId, delta, reason) {
 
 /** Inline keyboard with a button that opens the Mini App (once its URL is configured with /setup). */
 export async function openAppKeyboard(text = '🎤 Open Speaking Mock', path = '') {
-  const url = await getSetting(KEYS.app_url);
-  return url ? { inline_keyboard: [[{ text, web_app: { url: url + path } }]] } : undefined;
+  return APP_URL ? { inline_keyboard: [[{ text, web_app: { url: APP_URL + path } }]] } : undefined;
 }
 
 async function notify(chatId, text, buttonText) {

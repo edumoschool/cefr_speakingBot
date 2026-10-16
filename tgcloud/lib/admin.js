@@ -2,10 +2,10 @@
 // remember commands. (The typed admin commands still work.)
 import { api, db } from 'sdk';
 import { sql } from 'sdk/db';
-import { ADMIN_IDS, CHANNEL_ID } from './config.js';
+import { ADMIN_IDS, APP_URL, CHANNEL_ID } from './config.js';
+import { ENV } from './env.js';
 import { weeklyTop } from './leaderboard.js';
 import { paymentsEnabled, setPaymentsEnabled } from './payments.js';
-import { getSetting, KEYS } from './settings.js';
 import { boardText } from './botui.js';
 import { tr } from './texts.js';
 
@@ -13,17 +13,17 @@ export const isAdmin = (id) => ADMIN_IDS.includes(id);
 
 async function panel() {
   const pay = await paymentsEnabled();
-  const [openai, deepgram, appUrl] = await Promise.all([getSetting(KEYS.openai), getSetting(KEYS.deepgram), getSetting(KEYS.app_url)]);
   const ok = (v) => (v ? '✅' : '❌');
+  const stt = ENV.TRANSCRIBER === 'elevenlabs' ? 'ElevenLabs' : 'Deepgram';
+  const backup = ENV.TRANSCRIBER === 'elevenlabs' ? ENV.DEEPGRAM_API_KEY : ENV.ELEVENLABS_API_KEY;
   const text =
     `🛠 <b>Admin panel</b>\n\n` +
-    `${ok(openai)} OpenAI key   ${ok(deepgram)} Deepgram key   ${ok(appUrl)} Mini App link\n` +
+    `${ok(ENV.OPENAI_API_KEY)} OpenAI   ${ok(ENV.DEEPGRAM_API_KEY)} Deepgram   ${ok(ENV.ELEVENLABS_API_KEY)} ElevenLabs   ${ok(APP_URL)} Mini App link\n` +
+    `🎧 Speech-to-text: <b>${stt}</b>${backup ? ' (backup ready)' : ''}\n` +
     `⭐ Payments: <b>${pay ? 'ON' : 'OFF'}</b>` +
-    (openai && deepgram && appUrl ? '' : `\n\n<b>To finish setup</b>, send:\n` +
-      (openai ? '' : '• <code>/setkey openai sk-…</code>\n') +
-      (deepgram ? '' : '• <code>/setkey deepgram …</code>\n') +
-      (appUrl ? '' : '• <code>/setup https://app…tgcloud.ai/</code> (the link printed by deploy)\n') +
-      `(messages with keys are deleted automatically)`);
+    (ENV.OPENAI_API_KEY && (ENV.DEEPGRAM_API_KEY || ENV.ELEVENLABS_API_KEY) && APP_URL
+      ? ''
+      : `\n\n<b>To finish setup</b>: fill in the ❌ values in <code>.env</code> on your computer and run <code>npm run deploy</code>.`);
   return {
     text,
     reply_markup: {
