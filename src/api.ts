@@ -2,8 +2,11 @@ import { tg } from './telegram';
 import type { Me, MockResult, StartResponse } from './types';
 
 export class ApiError extends Error {
-  /** `code`: the endpoint's EndpointError code (or the platform error type); `type`: ENDPOINT_ERROR, UNAUTHORIZED, … */
-  constructor(message: string, public code: string, public type = 'ERROR') {
+  /**
+   * `code`: the endpoint's EndpointError code (or the platform error type); `type`: ENDPOINT_ERROR, UNAUTHORIZED, …;
+   * `status`: the HTTP status, 0 when the request never completed (offline, timeout).
+   */
+  constructor(message: string, public code: string, public type = 'ERROR', public status?: number) {
     super(message);
   }
 }
@@ -18,7 +21,7 @@ export function call<T>(name: string, input: Record<string, unknown> = {}): Prom
   if (serverless && tg?.initData) {
     return new Promise((resolve, reject) =>
       serverless.call(name, input, (err, result) => {
-        if (err) reject(new ApiError(err.message || 'Request failed', err.parameters?.code ?? err.type ?? 'ERROR', err.type ?? 'ERROR'));
+        if (err) reject(new ApiError(err.message || 'Request failed', err.parameters?.code ?? err.type ?? 'ERROR', err.type ?? 'ERROR', err.status));
         else resolve(result as T);
       }),
     );
@@ -37,7 +40,7 @@ async function devCall<T>(name: string, input: Record<string, unknown>): Promise
     body: JSON.stringify(input),
   });
   const data = await res.json().catch(() => ({ ok: false, description: `HTTP ${res.status}` }));
-  if (!data.ok) throw new ApiError(data.description ?? 'Request failed', data.parameters?.code ?? data.error_type ?? 'ERROR', data.error_type ?? 'ERROR');
+  if (!data.ok) throw new ApiError(data.description ?? 'Request failed', data.parameters?.code ?? data.error_type ?? 'ERROR', data.error_type ?? 'ERROR', res.status);
   return data.result as T;
 }
 

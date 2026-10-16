@@ -108,6 +108,7 @@ function blobToBase64(blob: Blob): Promise<string> {
 }
 
 const CHUNK_CHARS = 300_000; // the endpoint accepts up to 400k base64 chars per call
+const MIN_CHUNK_CHARS = 25_000;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
@@ -137,11 +138,20 @@ class UploadQueue {
   answer(sessionId: string, step: Step, blob: Blob, gradePartAfter: boolean) {
     this.enqueue(async () => {
       const b64 = await blobToBase64(blob);
-      const parts: string[] = [];
-      for (let i = 0; i < b64.length; i += CHUNK_CHARS) parts.push(b64.slice(i, i + CHUNK_CHARS));
-      if (!parts.length) parts.push('');
-      for (let i = 0; i < parts.length; i++) {
-        await withRetry(() => api.uploadChunk({ session: sessionId, key: step.key, index: i, total: parts.length, mime: blob.type, data: parts[i] }));
+      // If the platform rejects a request as too large (413), start this answer again
+      // with half-size chunks. A different `total` makes the server begin a fresh set.
+      for (let size = CHUNK_CHARS; ; size = Math.floor(size / 2)) {
+        const parts: string[] = [];
+        for (let i = 0; i < b64.length; i += size) parts.push(b64.slice(i, i + size));
+        if (!parts.length) parts.push('');
+        try {
+          for (let i = 0; i < parts.length; i++) {
+            await withRetry(() => api.uploadChunk({ session: sessionId, key: step.key, index: i, total: parts.length, mime: blob.type, data: parts[i] }));
+          }
+          return;
+        } catch (e: any) {
+          if (e?.status !== 413 || size / 2 < MIN_CHUNK_CHARS) throw e;
+        }
       }
     });
     if (gradePartAfter) {
@@ -160,9 +170,10 @@ async function withRetry<T>(fn: () => Promise<T>, tries = 3): Promise<T> {
     try {
       return await fn();
     } catch (e: any) {
-      // Our own EndpointErrors are final (bad input, finished mock…) except BUSY; auth errors won't fix
-      // themselves; anything else (internal error, network, timeout) is worth another try.
-      const final = (e?.type === 'ENDPOINT_ERROR' && e.code !== 'BUSY') || e?.type === 'UNAUTHORIZED';
+      // Our own EndpointErrors are final (bad input, finished mock…) except BUSY; auth errors and
+      // "too large" won't fix themselves; anything else (5xx, network/timeout = status 0) gets another try.
+      const final =
+        (e?.type === 'ENDPOINT_ERROR' && e.code !== 'BUSY') || e?.type === 'UNAUTHORIZED' || e?.status === 413;
       const retryable = !final;
       if (!retryable || attempt >= tries) throw e;
       await sleep(1500 * attempt);

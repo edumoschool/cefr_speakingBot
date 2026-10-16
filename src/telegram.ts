@@ -1,6 +1,6 @@
 // Thin, typed wrapper around window.Telegram.WebApp.
 
-type Callback = (err: { message: string; type: string; parameters?: Record<string, any> } | null, result?: any) => void;
+type Callback = (err: { message: string; type: string; status?: number; parameters?: Record<string, any> } | null, result?: any) => void;
 
 export interface TgWebApp {
   initData: string;
