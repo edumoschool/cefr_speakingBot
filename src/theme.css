@@ -118,3 +118,14 @@ ion-card .attempts-num, ion-card .score { color: var(--ion-text-color, #000); }
 .part-score { padding: 8px 0; border-bottom: 1px solid rgba(127, 127, 127, .15); }
 .answer-block { border-top: 1px solid rgba(127, 127, 127, .15); }
 .answer-block h3 { margin: 2px 0 6px; font-size: 16px; }
+
+/* Questions & sample answers */
+.lib-part-title { margin: 12px 0 2px; }
+.lib-question { font-size: 16px; font-weight: 600; color: var(--ion-text-color, #000); margin: 4px 0; }
+.lib-n { color: var(--app-hint); font-weight: 500; }
+.lib-bullets { padding-left: 18px; margin: 4px 0; }
+.lib-bullets li { margin: 4px 0; }
+.lib-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 4px 0; }
+.lib-nav { display: flex; justify-content: space-between; gap: 8px; }
+.lib-nav ion-button { flex: 1; }
+.lib-q .debate { margin-top: 6px; }

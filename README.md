@@ -25,6 +25,7 @@ score out of 75, a CEFR level (B1 / B2 / C1) and detailed feedback.
 **What students see**
 - The app opens in **O'zbekcha, Русский or English**, picked automatically from their Telegram language. They can change it in Settings. The examiner's feedback comes in the same language.
 - First visit: a 3-screen welcome, then four tabs: **Practice** (full test, or one part for free), **Progress** (score chart, past results, top speakers), **Friends** (invite link, buying tests) and **Settings** (language, how the test works, help).
+- **📚 Questions & sample answers**: every test (all 34), part by part, with the pictures, the examiner's voice and a sample answer behind a "Show" button. Nothing is recorded and no test is used. Opened from the Practice tab or the bot's menu. The Mock Book tests use the book's own answers; the Real Exam tests use AI-written C1-level answers (generated once with `node scripts/generate-samples.mjs` into `tgcloud/lib/samples.js`; run it again only if you add tests).
 - Before a test: a microphone check (record 3 seconds and hear it back). Before each part: a short explanation of what happens and how much time there is.
 - Results: the level in plain words, the 3 most important things to improve, what went well, then details on tap.
 - In the bot chat everything is buttons: open the app, take the test with voice messages, invite friends, top speakers, language. Typing anything just shows the menu.

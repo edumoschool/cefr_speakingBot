@@ -787,3 +787,26 @@ test('owner: the channel creator is admin automatically, gets bottom buttons and
   await onMessage(msg(4343, '👥 Students'));
   assert.ok(!/Students<\/b>/.test(sentTo(4343).at(-1)?.params.text ?? ''));
 });
+
+test('library: every test has sample answers for every question; members only; no attempt used', async () => {
+  const { default: library } = await import('../tgcloud/endpoints/library.js');
+  const { allTests } = await import('../tgcloud/lib/exam.js');
+  await onMessage(msg(5100, '/start'));
+  await assert.rejects(library({}, ctx(5100)), (e) => e.parameters.code === 'NOT_MEMBER');
+
+  fake.channelMembers = new Set([5100]);
+  const { tests } = await library({}, ctx(5100));
+  assert.equal(tests.length, allTests().length);
+  assert.ok(tests.every((x) => x.samples === 'book' || x.samples === 'ai'), 'all tests have samples');
+  for (const { id } of tests) {
+    const { test } = await library({ id }, ctx(5100));
+    assert.equal(test.steps.length, 8);
+    for (const s of test.steps) assert.ok(s.sample && s.sample.length > 100, `${id} ${s.key} has a sample answer`);
+  }
+  const rb = (await library({ id: 'rb01' }, ctx(5100))).test;
+  assert.equal(rb.samples, 'ai');
+  assert.ok(rb.steps.find((s) => s.key === 'p1_2_1').images.length === 2);
+  assert.ok(rb.steps[0].audio?.startsWith('/audio/'), 'examiner voice included');
+  await assert.rejects(library({ id: 'nope' }, ctx(5100)), (e) => e.parameters.code === 'BAD_REQUEST');
+  assert.equal(attempts(5100), 1, 'studying uses no attempt');
+});

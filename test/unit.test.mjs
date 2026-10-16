@@ -29,7 +29,8 @@ test('steps use official timings and hide model answers', () => {
   ]);
   assert.ok(!JSON.stringify(publicTest(getTest('mb03'))).includes('I enjoy spending my free time'));
   assert.ok(modelAnswer(getTest('mb03'), 'p1_1_1').startsWith('I enjoy'));
-  assert.equal(modelAnswer(getTest('rb01'), 'p2'), null);
+  assert.ok(modelAnswer(getTest('rb01'), 'p2').length > 500, 'Real Exam tests use the generated samples');
+  assert.ok(!JSON.stringify(publicTest(getTest('rb01'))).includes(modelAnswer(getTest('rb01'), 'p2').slice(0, 40)), 'still hidden during a test');
 });
 
 test('pickTest prefers untaken tests', () => {

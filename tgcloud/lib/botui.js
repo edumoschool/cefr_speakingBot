@@ -16,6 +16,8 @@ export async function menuKeyboard(t) {
   const rows = [];
   const app = await appButton(t('btnOpenApp'));
   if (app) rows.push(app);
+  const library = await appButton(t('btnLibrary'), '#library');
+  if (library) rows.push(library);
   rows.push([{ text: t('btnVoice'), callback_data: 'voice_mode' }]);
   rows.push([
     { text: t('btnInvite'), callback_data: 'menu:invite' },

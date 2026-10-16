@@ -38,6 +38,19 @@ export interface TestView {
   steps: Step[];
 }
 
+/** "Questions & sample answers" (endpoint library). */
+export type SampleSource = 'book' | 'ai' | null;
+export interface LibraryItem {
+  id: string;
+  title: string;
+  topics: string;
+  samples: SampleSource;
+}
+export interface LibraryTest extends TestView {
+  samples: SampleSource;
+  steps: (Step & { sample: string | null })[];
+}
+
 export interface StartResponse {
   session: { id: string; status: string; kind: 'mock' | 'drill' };
   expired: boolean;

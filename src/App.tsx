@@ -7,6 +7,7 @@ import type { Me, MockResult, PartId, StartResponse } from './types';
 import { Exam } from './screens/Exam';
 import { Gate } from './screens/Gate';
 import { Grading } from './screens/Grading';
+import { Library } from './screens/Library';
 import { Message } from './screens/Message';
 import { Onboarding, onboardingSeen } from './screens/Onboarding';
 import { Ready } from './screens/Ready';
@@ -19,6 +20,7 @@ type Screen =
   | { name: 'onboarding' }
   | { name: 'gate' }
   | { name: 'home' }
+  | { name: 'library' }
   | { name: 'ready'; drill?: PartId }
   | { name: 'exam'; start: StartResponse; stream: MediaStream; startIndex: number }
   | { name: 'grading'; sessionId: string }
@@ -51,6 +53,11 @@ export default function App() {
       setLangState(data.feedbackLang);
       if (!onboardingSeen()) return setScreen({ name: 'onboarding' });
       if (!data.isMember) return setScreen({ name: 'gate' });
+      // Opened from the bot's "Questions & sample answers" button.
+      if (location.hash === '#library') {
+        history.replaceState(null, '', location.pathname + location.search);
+        return setScreen({ name: 'library' });
+      }
       const m = /result=([0-9a-f]{32})/.exec(location.hash);
       if (m) {
         history.replaceState(null, '', location.pathname + location.search);
@@ -70,7 +77,7 @@ export default function App() {
   // Telegram's own back button on secondary screens.
   useEffect(() => {
     if (!tg) return;
-    const back = ['result', 'ready'].includes(screen.name);
+    const back = ['result', 'ready', 'library'].includes(screen.name);
     const onBack = () => setScreen({ name: 'home' });
     if (back) {
       tg.BackButton.show();
@@ -150,9 +157,12 @@ export default function App() {
               onOpenResult={openResult}
               onRefresh={refreshMe}
               onShowIntro={() => setScreen({ name: 'onboarding' })}
+              onOpenLibrary={() => setScreen({ name: 'library' })}
             />
           )
         );
+      case 'library':
+        return <Library onBack={() => goHome('practice')} onNotMember={() => setScreen({ name: 'gate' })} />;
       case 'ready':
         return (
           <Ready

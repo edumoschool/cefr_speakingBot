@@ -2,6 +2,7 @@
 // Pure module (no sdk imports) so it can be unit-tested in Node.
 import QUESTIONS from './questions.js';
 import AUDIO from './audio-manifest.js';
+import SAMPLES from './samples.js';
 
 /** Official Multilevel timings (seconds). */
 export const TIMING = {
@@ -76,11 +77,32 @@ export function pickTest(taken, rand = Math.random) {
   return pool[Math.floor(rand() * pool.length)];
 }
 
+/** Sample answers of a test: the Mock Book's own, else the generated ones (samples.js). */
+function samplesOf(t) {
+  return t.model ?? SAMPLES[t.id] ?? null;
+}
+
+/** Where a test's sample answers come from: 'book' (Mock Book), 'ai' (generated) or null. */
+export function sampleSource(t) {
+  return t.model ? 'book' : SAMPLES[t.id] ? 'ai' : null;
+}
+
 export function modelAnswer(t, key) {
-  if (!t.model) return null;
+  const model = samplesOf(t);
+  if (!model) return null;
   const m = /^p1_(1|2)_(\d+)$/.exec(key);
-  if (m) return (m[1] === '1' ? t.model.part1_1 : t.model.part1_2)[Number(m[2]) - 1] || null;
-  if (key === 'p2') return t.model.part2 || null;
-  if (key === 'p3') return t.model.part3 || null;
+  if (m) return (m[1] === '1' ? model.part1_1 : model.part1_2)?.[Number(m[2]) - 1] || null;
+  if (key === 'p2') return model.part2 || null;
+  if (key === 'p3') return model.part3 || null;
   return null;
+}
+
+/** For "Questions & sample answers": the list of tests, or one test with its sample answers. */
+export function libraryList() {
+  return QUESTIONS.map((t) => ({ id: t.id, title: t.title, topics: t.topics, samples: sampleSource(t) }));
+}
+
+export function libraryTest(t) {
+  const view = publicTest(t);
+  return { ...view, samples: sampleSource(t), steps: view.steps.map((s) => ({ ...s, sample: modelAnswer(t, s.key) })) };
 }

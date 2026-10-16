@@ -1,5 +1,5 @@
 import { tg } from './telegram';
-import type { Me, MockResult, StartResponse } from './types';
+import type { LibraryItem, LibraryTest, Me, MockResult, StartResponse } from './types';
 
 export class ApiError extends Error {
   /**
@@ -54,5 +54,7 @@ export const api = {
   finish: (session: string) => call<{ id: string; result: MockResult }>('finish_mock', { session }),
   setPrefs: (lang: string) => call<{ lang: string }>('set_prefs', { lang }),
   createInvoice: (pack: string) => call<{ link: string }>('create_invoice', { pack }),
+  library: () => call<{ tests: LibraryItem[] }>('library'),
+  libraryTest: (id: string) => call<{ test: LibraryTest }>('library', { id }),
   result: (id: string) => call<{ id: string; result: MockResult }>('get_result', { id }),
 };

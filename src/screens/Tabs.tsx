@@ -5,7 +5,7 @@ import {
   useIonToast,
 } from '@ionic/react';
 import {
-  chatbubbleEllipsesOutline, copyOutline, helpCircleOutline, micOutline, peopleOutline, playOutline,
+  bookOutline, chatbubbleEllipsesOutline, copyOutline, helpCircleOutline, micOutline, peopleOutline, playOutline,
   settingsOutline, shareSocialOutline, starOutline, trendingUpOutline,
 } from 'ionicons/icons';
 import { api } from '../api';
@@ -25,6 +25,7 @@ interface Props {
   onOpenResult: (id: string) => void;
   onRefresh: () => Promise<Me | undefined>;
   onShowIntro: () => void;
+  onOpenLibrary: () => void;
 }
 
 const PARTS: PartId[] = ['1.1', '1.2', '2', '3'];
@@ -67,7 +68,7 @@ export function Tabs(props: Props) {
 }
 
 // ---------------------------------------------------------------- Practice
-function PracticeTab({ me, onStart, onTab }: Props) {
+function PracticeTab({ me, onStart, onTab, onOpenLibrary }: Props) {
   const { t } = useI18n();
   const a = me.active;
   const canStart = !!a || me.user.attempts > 0;
@@ -138,6 +139,19 @@ function PracticeTab({ me, onStart, onTab }: Props) {
             <p className="hint">{a ? t('finishOpenFirst') : t('practiseNoneLeft')}</p>
           </IonCardContent>
         )}
+      </IonCard>
+
+      <IonCard button onClick={onOpenLibrary} data-testid="open-library">
+        <IonCardHeader>
+          <IonCardTitle>{t('library')}</IonCardTitle>
+          <IonCardSubtitle>{t('librarySub')}</IonCardSubtitle>
+        </IonCardHeader>
+        <IonCardContent>
+          <IonButton expand="block" fill="outline">
+            <IonIcon slot="start" icon={bookOutline} />
+            {t('libraryAll')}
+          </IonButton>
+        </IonCardContent>
       </IonCard>
 
       <div className="ion-padding">
