@@ -32,6 +32,7 @@ score out of 75, a CEFR level (B1 / B2 / C1) and detailed feedback.
 
 **What you do (admin)** — send **/admin** to the bot. You get one message with buttons:
 - ✅/❌ shows which `.env` values are set (OpenAI, Deepgram, ElevenLabs, Mini App link) and which transcriber is in use.
+- ⚠️ If grading or speech-to-text fails (wrong key, no credit, model not available), the bot messages you the reason in plain words, at most once every 10 minutes. The latest problem is also shown in /admin. The student's test is kept, so they can try again.
 - 📊 Statistics · 🏆 Post top speakers to the channel · ⭐ Turn payments on/off · 🎁 How to give a student free tests.
 
 API keys and settings are **not** entered in the bot. They live in your `.env` file (see Deploy). After deploying, send `/setup` once to install the menu button.

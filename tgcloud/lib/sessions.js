@@ -6,6 +6,7 @@ import { gradePart as llmGradePart, summarize } from './grading.js';
 import { CRITERIA, drillScore, scorePart, totalScore } from './scoring.js';
 import { transcribe } from './speech.js';
 import { base64ToBytes, concatBytes, newId, nowSec } from './util.js';
+import { reportProblem } from './alerts.js';
 import { returning } from './db.js';
 
 const fail = (code, message) => new EndpointError(message, { code });
@@ -178,8 +179,16 @@ export function checkOpen(session) {
  */
 export async function saveAudioAnswer(session, step, audio, mime) {
   const safeMime = /^audio\/[\w.+-]+(;\s*codecs=[\w.]+)?$/.test(mime ?? '') ? mime : 'audio/webm';
-  const { transcript, metrics } =
-    audio.length < MIN_AUDIO_BYTES ? { transcript: '', metrics: emptyMetrics(step.speakSec) } : await transcribe(audio, safeMime, step.speakSec);
+  let heard = { transcript: '', metrics: emptyMetrics(step.speakSec) };
+  if (audio.length >= MIN_AUDIO_BYTES) {
+    try {
+      heard = await transcribe(audio, safeMime, step.speakSec);
+    } catch (e) {
+      await reportProblem('Speech-to-text', e);
+      throw e;
+    }
+  }
+  const { transcript, metrics } = heard;
   const rows = await returning(sql`INSERT INTO answers (session_id, step_key, transcript, metrics)
                    VALUES (${session.id}, ${step.key}, ${transcript}, ${JSON.stringify(metrics)}) ON CONFLICT DO NOTHING RETURNING step_key`);
   return { inserted: rows.length > 0, words: metrics.wordCount };
@@ -233,6 +242,7 @@ export async function gradeSessionPart(session, part) {
     return result;
   } catch (e) {
     await db.run(sql`DELETE FROM part_grades WHERE session_id = ${session.id} AND part = ${part} AND status = 'running'`);
+    await reportProblem('Grading', e);
     throw e;
   }
 }
@@ -280,6 +290,7 @@ export async function finishSession(id, userId) {
     return { session: await getOwnSession(id, userId), fresh: true };
   } catch (e) {
     await db.run(sql`UPDATE sessions SET status = 'in_progress' WHERE id = ${id} AND status = 'grading'`);
+    await reportProblem('Finishing a test', e);
     throw e;
   }
 }

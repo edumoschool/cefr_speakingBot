@@ -3,7 +3,7 @@ import { sql } from 'sdk/db';
 
 // Runtime switches an admin can flip from the bot (/admin). API keys are NOT
 // stored here: they come from .env (lib/env.js).
-export const KEYS = { payments: 'payments' };
+export const KEYS = { payments: 'payments', lastError: 'last_error', lastAlertAt: 'last_alert_at' };
 
 export async function getSetting(key) {
   const row = await db.get(sql`SELECT value FROM settings WHERE key = ${key}`);

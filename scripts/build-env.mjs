@@ -21,7 +21,8 @@ if (existsSync(file)) {
     vars[m[1]] = v;
   }
 }
-const get = (k, d = '') => (placeholder ? d : process.env[k] ?? vars[k] ?? d);
+// An empty value (OPENAI_MODEL=) means "use the default", not "use nothing".
+const get = (k, d = '') => (placeholder ? d : process.env[k] || vars[k] || d);
 
 const env = {
   OPENAI_API_KEY: get('OPENAI_API_KEY'),

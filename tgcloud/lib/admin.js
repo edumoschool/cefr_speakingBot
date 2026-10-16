@@ -8,11 +8,19 @@ import { weeklyTop } from './leaderboard.js';
 import { paymentsEnabled, setPaymentsEnabled } from './payments.js';
 import { boardText } from './botui.js';
 import { tr } from './texts.js';
+import { explain, lastProblem } from './alerts.js';
+import { escapeHtml } from './util.js';
 
 export const isAdmin = (id) => ADMIN_IDS.includes(id);
 
 async function panel() {
   const pay = await paymentsEnabled();
+  const problem = await lastProblem();
+  const ago = problem && Math.max(1, Math.round((Date.now() / 1000 - problem.at) / 60));
+  const problemText = problem && ago < 24 * 60
+    ? `\n\n⚠️ <b>Last problem</b> (${ago < 60 ? `${ago} min` : `${Math.round(ago / 60)} h`} ago, ${escapeHtml(problem.where)}):\n` +
+      `${explain(problem.message) ? `👉 ${escapeHtml(explain(problem.message))}\n` : ''}<code>${escapeHtml(problem.message.slice(0, 300))}</code>`
+    : '';
   const ok = (v) => (v ? '✅' : '❌');
   const stt = ENV.TRANSCRIBER === 'elevenlabs' ? 'ElevenLabs' : 'Deepgram';
   const backup = ENV.TRANSCRIBER === 'elevenlabs' ? ENV.DEEPGRAM_API_KEY : ENV.ELEVENLABS_API_KEY;
@@ -21,6 +29,7 @@ async function panel() {
     `${ok(ENV.OPENAI_API_KEY)} OpenAI   ${ok(ENV.DEEPGRAM_API_KEY)} Deepgram   ${ok(ENV.ELEVENLABS_API_KEY)} ElevenLabs   ${ok(APP_URL)} Mini App link\n` +
     `🎧 Speech-to-text: <b>${stt}</b>${backup ? ' (backup ready)' : ''}\n` +
     `⭐ Payments: <b>${pay ? 'ON' : 'OFF'}</b>` +
+    problemText +
     (ENV.OPENAI_API_KEY && (ENV.DEEPGRAM_API_KEY || ENV.ELEVENLABS_API_KEY) && APP_URL
       ? ''
       : `\n\n<b>To finish setup</b>: fill in the ❌ values in <code>.env</code> on your computer and run <code>npm run deploy</code>.`);

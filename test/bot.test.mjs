@@ -651,3 +651,31 @@ test('tidy chat: voice mode keeps one question on screen; the result stays', asy
   const allDeleted = fake.sent.filter((c) => c.method === 'deleteMessages').flatMap((c) => c.params.message_ids);
   assert.ok(!allDeleted.includes(fake.sent.indexOf(sends.at(-1)) + 1), 'the result message is not deleted'); // fake ids = position + 1
 });
+
+test('problems: a failing OpenAI call tells the admin why, once, and shows in /admin', async () => {
+  const { ADMIN_IDS } = await import('../tgcloud/lib/config.js');
+  const admin = ADMIN_IDS[0];
+  const realFetch = fake.fetch;
+  fake.fetch = async (url, init) => (String(url).includes('openai.com')
+    ? new Response('{"error":{"message":"Incorrect API key provided: sk-proj-abcdefghijklmnop","code":"invalid_api_key"}}', { status: 401 })
+    : realFetch(url, init));
+  try {
+    fake.channelMembers = new Set([702]);
+    await onMessage(msg(702, '/start'));
+    await onMessage(msg(702, '/voice'));
+    for (let i = 0; i < 3; i++) {
+      fake.files.set(`w${i}`, new Uint8Array(6000).fill(i + 1));
+      await onMessage(voiceMsg(702, `w${i}`, 20, 950 + i));
+    }
+    await onMessage(msg(702, '/finish'));
+    const alerts = fake.sent.filter((c) => c.method === 'sendMessage' && c.params.chat_id === admin && /failed for a student/.test(c.params.text));
+    assert.equal(alerts.length, 1, 'one alert, not one per failure');
+    assert.match(alerts[0].params.text, /OpenAI key in \.env is wrong/);
+    assert.ok(!alerts[0].params.text.includes('abcdefghijklmnop'), 'the key is never echoed');
+    assert.equal(q1("SELECT status FROM sessions WHERE user_id = 702").status, 'in_progress', 'the student can retry');
+    await onMessage(msg(admin, '/admin'));
+    assert.match(fake.sent.at(-1).params.text, /Last problem/);
+  } finally {
+    fake.fetch = realFetch;
+  }
+});
