@@ -6,6 +6,7 @@ import { sendBalance, sendInvite, sendLangPicker, sendMenu, sendPaySupport, send
 import { finishInChat, onVoice, startChatMock } from '../lib/chatmode.js';
 import { APP_URL, CHANNEL_ID } from '../lib/config.js';
 import { creditPayment, packsKeyboard, paymentsEnabled, refundPayment, setPaymentsEnabled } from '../lib/payments.js';
+import { removeMessages, screenMessage } from '../lib/screen.js';
 import { tFor } from '../lib/texts.js';
 import { grantAttempts, refreshMembership, upsertUser } from '../lib/users.js';
 import { parseRefPayload } from '../lib/util.js';
@@ -15,7 +16,20 @@ export default async function (message) {
   const from = message.from;
   const [cmd, ...args] = (message.text ?? '').trim().split(/\s+/);
   const admin = isAdmin(from.id);
+  // Student input (commands, stray text) is removed once the bot has answered, so
+  // only the current screen stays in the chat. Admin commands are kept as a log.
+  if (message.text && !message.successful_payment) {
+    const handled = await route(message, from, cmd, args, admin);
+    if (!(admin && isAdminCommand(cmd))) await removeMessages(from.id, [message.message_id]);
+    return handled;
+  }
+  return route(message, from, cmd, args, admin);
+}
 
+const ADMIN_COMMANDS = ['/admin', '/setup', '/stats', '/grant', '/payments', '/leaderboard', '/refund'];
+const isAdminCommand = (cmd) => ADMIN_COMMANDS.includes(cmd);
+
+async function route(message, from, cmd, args, admin) {
   if (cmd === '/start') {
     await upsertUser(from, parseRefPayload(args[0]));
     if (args[0] === 'voice') return startChatMock(from.id);
@@ -83,8 +97,8 @@ export default async function (message) {
 
 async function sendShop(userId) {
   const t = await tFor(userId);
-  if (!(await paymentsEnabled())) return api.sendMessage({ chat_id: userId, text: t('buyOff') });
-  return api.sendMessage({ chat_id: userId, text: t('buyTitle'), reply_markup: packsKeyboard() });
+  if (!(await paymentsEnabled())) return screenMessage({ chat_id: userId, text: t('buyOff') });
+  return screenMessage({ chat_id: userId, text: t('buyTitle'), reply_markup: packsKeyboard() });
 }
 
 // /setup — installs the Mini App menu button and the command lists (link from .env APP_URL).

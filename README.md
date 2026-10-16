@@ -28,6 +28,7 @@ score out of 75, a CEFR level (B1 / B2 / C1) and detailed feedback.
 - Before a test: a microphone check (record 3 seconds and hear it back). Before each part: a short explanation of what happens and how much time there is.
 - Results: the level in plain words, the 3 most important things to improve, what went well, then details on tap.
 - In the bot chat everything is buttons: open the app, take the test with voice messages, invite friends, top speakers, language. Typing anything just shows the menu.
+- The chat stays short: each new menu replaces the previous one, and the student's typed commands are removed. In the voice-message test only the current question is shown; the result message is always kept, and so are payment receipts and reward notices. (Telegram only allows deleting messages younger than 48 hours, so older ones stay.)
 
 **What you do (admin)** — send **/admin** to the bot. You get one message with buttons:
 - ✅/❌ shows which `.env` values are set (OpenAI, Deepgram, ElevenLabs, Mini App link) and which transcriber is in use.

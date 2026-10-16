@@ -214,7 +214,7 @@ test('admin commands: /grant gives tests; students cannot use admin commands', a
   await onMessage(msg(admin, '/grant 999 2'));
   assert.equal(attempts(999), 3);
   await onMessage(msg(admin, '/setkey openai sk-x'));
-  assert.ok(!fake.sent.some((c) => c.method === 'deleteMessage'), 'keys are not set from the bot any more');
+  assert.ok(!fake.sent.some((c) => /saved/i.test(c.params?.text ?? '')), 'keys are not set from the bot any more');
 });
 
 // ---- chat voice mode (voice messages → api.getFileContent → same pipeline)
@@ -614,4 +614,40 @@ test('only the provider with a key is used', async () => {
   const m = await oneAnswer(3003);
   assert.equal(m.provider, 'elevenlabs');
   assert.equal(calls.deepgram, 0);
+});
+
+// ---- tidy chat (lib/screen.js)
+test('tidy chat: a new menu replaces the old one and the typed command is removed', async () => {
+  fake.channelMembers = new Set([700]);
+  await onMessage(msg(700, '/start'));
+  const first = fake.sent.filter((c) => c.method === 'sendMessage' && c.params.chat_id === 700).length;
+  fake.sent.length = 0;
+  await onMessage({ ...msg(700, '/top'), message_id: 55 });
+  const deleted = fake.sent.filter((c) => c.method === 'deleteMessages').flatMap((c) => c.params.message_ids);
+  assert.equal(first, 1);
+  assert.ok(deleted.includes(55), 'the typed /top is removed');
+  assert.equal(deleted.length, 2, 'the old welcome screen is removed too');
+  const screen = JSON.parse(q1('SELECT screen_msgs FROM users WHERE id = 700').screen_msgs);
+  assert.equal(screen.length, 1, 'only the new screen is remembered');
+});
+
+test('tidy chat: voice mode keeps one question on screen; the result stays', async () => {
+  fake.channelMembers = new Set([701]);
+  await onMessage(msg(701, '/start'));
+  await onMessage(msg(701, '/voice'));
+  const q1Ids = JSON.parse(q1('SELECT screen_msgs FROM users WHERE id = 701').screen_msgs);
+  fake.files.set('v0', new Uint8Array(6000).fill(1));
+  fake.sent.length = 0;
+  await onMessage(voiceMsg(701, 'v0', 20, 900));
+  const deleted = fake.sent.filter((c) => c.method === 'deleteMessages').flatMap((c) => c.params.message_ids);
+  for (const id of [...q1Ids, 900]) assert.ok(deleted.includes(id), 'question 1 and the answer go away');
+  for (let i = 1; i < 8; i++) {
+    fake.files.set(`v${i}`, new Uint8Array(6000).fill(i + 1));
+    await onMessage(voiceMsg(701, `v${i}`, 20, 900 + i));
+  }
+  const sends = fake.sent.filter((c) => c.method === 'sendMessage' && c.params.chat_id === 701);
+  assert.match(sends.at(-1).params.text, /Score/);
+  assert.equal(JSON.parse(q1('SELECT screen_msgs FROM users WHERE id = 701').screen_msgs).length, 0, 'screen cleared after the result');
+  const allDeleted = fake.sent.filter((c) => c.method === 'deleteMessages').flatMap((c) => c.params.message_ids);
+  assert.ok(!allDeleted.includes(fake.sent.indexOf(sends.at(-1)) + 1), 'the result message is not deleted'); // fake ids = position + 1
 });

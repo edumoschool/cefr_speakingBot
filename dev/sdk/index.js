@@ -42,7 +42,9 @@ export const api = new Proxy({}, {
       if (!f) throw new BotApiError(method, 400, 'Bad Request: invalid file_id');
       return f;
     }
-    if (method === 'sendMessage') return { message_id: fake.sent.length, chat: { id: params.chat_id }, text: params.text };
+    const message = () => ({ message_id: fake.sent.length, chat: { id: params.chat_id }, text: params.text });
+    if (method === 'sendMediaGroup') return params.media.map((_, i) => ({ ...message(), message_id: fake.sent.length * 100 + i }));
+    if (method.startsWith('send') && method !== 'sendChatAction') return message();
     return true;
   },
 });

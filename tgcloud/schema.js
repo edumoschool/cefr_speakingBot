@@ -14,6 +14,7 @@ export const users = table('users', {
   isMember: boolean('is_member').notNull().default(false),
   feedbackLang: text('feedback_lang').notNull().default('en'), // en | uz | ru
   blocked: boolean('blocked').notNull().default(false),
+  screenMsgs: text('screen_msgs'), // JSON list of the bot's current menu/question message ids (lib/screen.js)
   createdAt: integer('created_at').notNull().default(sql`(unixepoch())`),
   lastSeenAt: integer('last_seen_at').notNull().default(sql`(unixepoch())`),
 }, (t) => ({

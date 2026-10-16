@@ -7,6 +7,7 @@ import { returning } from './db.js';
 import { getSetting, KEYS, setSetting } from './settings.js';
 import { openAppKeyboard } from './users.js';
 import { tFor } from './texts.js';
+import { screenMessage, showScreen } from './screen.js';
 
 export async function paymentsEnabled() {
   return (await getSetting(KEYS.payments)) === 'on';
@@ -43,8 +44,8 @@ export function parsePayload(payload) {
 
 export async function sendInvoice(chatId, packId) {
   const pack = getPack(packId);
-  if (!pack || !(await paymentsEnabled())) return api.sendMessage({ chat_id: chatId, text: (await tFor(chatId))('buyOff') });
-  return api.sendInvoice({ chat_id: chatId, ...invoice(chatId, pack) });
+  if (!pack || !(await paymentsEnabled())) return screenMessage({ chat_id: chatId, text: (await tFor(chatId))('buyOff') });
+  return showScreen(chatId, () => api.sendInvoice({ chat_id: chatId, ...invoice(chatId, pack) }));
 }
 
 /** For the Mini App: Telegram.WebApp.openInvoice(link). */

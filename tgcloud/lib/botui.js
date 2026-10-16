@@ -5,6 +5,7 @@ import { APP_URL, CHANNEL_URL, REFERRALS_PER_ATTEMPT, SUPPORT_CONTACT } from './
 import { myWeeklyRank, weeklyTop } from './leaderboard.js';
 import { tFor, levelName } from './texts.js';
 import { getUser } from './users.js';
+import { screenMessage } from './screen.js';
 
 async function appButton(text, path = '') {
   return APP_URL ? [{ text, web_app: { url: APP_URL + path } }] : null;
@@ -28,9 +29,9 @@ export async function sendWelcome(from, member) {
   const t = await tFor(from.id);
   const text = t('welcome', { name: from.first_name ? `, ${from.first_name}` : '', n: REFERRALS_PER_ATTEMPT });
   if (member) {
-    return api.sendMessage({ chat_id: from.id, parse_mode: 'HTML', text, reply_markup: await menuKeyboard(t) });
+    return screenMessage({ chat_id: from.id, parse_mode: 'HTML', text, reply_markup: await menuKeyboard(t) });
   }
-  return api.sendMessage({
+  return screenMessage({
     chat_id: from.id,
     parse_mode: 'HTML',
     text: `${text}\n\n${t('joinFirst')}`,
@@ -40,9 +41,10 @@ export async function sendWelcome(from, member) {
   });
 }
 
-export async function sendMenu(userId) {
+/** `before`: an optional line shown above the menu ("Thanks for joining!"). */
+export async function sendMenu(userId, before = '') {
   const t = await tFor(userId);
-  return api.sendMessage({ chat_id: userId, text: t('menu'), reply_markup: await menuKeyboard(t) });
+  return screenMessage({ chat_id: userId, text: before ? `${before}\n\n${t('menu')}` : t('menu'), reply_markup: await menuKeyboard(t) });
 }
 
 export async function referralLink(userId) {
@@ -56,7 +58,7 @@ export async function sendInvite(userId) {
   const per = REFERRALS_PER_ATTEMPT;
   const link = await referralLink(userId);
   const share = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(t('inviteShareText'))}`;
-  return api.sendMessage({
+  return screenMessage({
     chat_id: userId,
     parse_mode: 'HTML',
     text: t('invite', { per, link, total: u.ref_qualified_count, progress: u.ref_qualified_count % per, attempts: u.attempts }),
@@ -74,7 +76,7 @@ export async function sendTop(userId) {
   const t = await tFor(userId);
   const mine = await myWeeklyRank(userId);
   const app = await appButton(t('btnTakeTest'));
-  return api.sendMessage({
+  return screenMessage({
     chat_id: userId,
     parse_mode: 'HTML',
     text: boardText(t, await weeklyTop(10)) + '\n\n' + (mine ? t('boardMine', { rank: mine.rank, score: mine.score }) : t('boardJoin')),
@@ -84,7 +86,7 @@ export async function sendTop(userId) {
 
 export async function sendLangPicker(userId) {
   const t = await tFor(userId);
-  return api.sendMessage({
+  return screenMessage({
     chat_id: userId,
     text: t('chooseLang'),
     reply_markup: {
@@ -100,12 +102,12 @@ export async function sendLangPicker(userId) {
 export async function sendBalance(userId) {
   const t = await tFor(userId);
   const u = await getUser(userId);
-  return api.sendMessage({ chat_id: userId, text: t('balance', { n: u.attempts }), reply_markup: await menuKeyboard(t) });
+  return screenMessage({ chat_id: userId, text: t('balance', { n: u.attempts }), reply_markup: await menuKeyboard(t) });
 }
 
 export async function sendPaySupport(userId) {
   const t = await tFor(userId);
-  return api.sendMessage({ chat_id: userId, text: t('paySupport', { contact: SUPPORT_CONTACT }) });
+  return screenMessage({ chat_id: userId, text: t('paySupport', { contact: SUPPORT_CONTACT }) });
 }
 
 /** Command menu shown by Telegram's "/" button, in each language. */

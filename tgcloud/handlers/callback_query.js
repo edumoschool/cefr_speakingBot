@@ -5,6 +5,7 @@ import { sendInvite, sendLangPicker, sendMenu, sendTop } from '../lib/botui.js';
 import { startChatMock } from '../lib/chatmode.js';
 import { LANGS } from '../lib/grading.js';
 import { sendInvoice } from '../lib/payments.js';
+import { removeMessages } from '../lib/screen.js';
 import { tFor } from '../lib/texts.js';
 import { refreshMembership, setFeedbackLang, upsertUser } from '../lib/users.js';
 
@@ -52,13 +53,9 @@ export default async function (query) {
     const t = await tFor(userId);
     if (!(await refreshMembership(userId))) return done(t('notInChannel'), true);
     await done('🎉');
-    if (query.message) {
-      try {
-        await api.deleteMessage({ chat_id: query.message.chat.id, message_id: query.message.message_id });
-      } catch {}
-    }
-    await api.sendMessage({ chat_id: userId, text: t('joinedThanks') });
-    return sendMenu(userId);
+    // The menu replaces the join prompt; the button may sit under an older message too.
+    await sendMenu(userId, t('joinedThanks'));
+    if (query.message) await removeMessages(query.message.chat.id, [query.message.message_id]);
   }
   return done();
 }
