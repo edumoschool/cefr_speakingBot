@@ -41,6 +41,16 @@ export function buildSteps(t) {
   return steps;
 }
 
+/** The steps of a session: the whole test for a mock, one part for a drill. */
+export function sessionSteps(session) {
+  const steps = buildSteps(getTest(session.test_id));
+  return session.kind === 'drill' ? steps.filter((s) => s.part === session.drill_part) : steps;
+}
+
+export function sessionParts(session) {
+  return session.kind === 'drill' ? [session.drill_part] : PARTS;
+}
+
 /** What the examiner says for a step (also the key of the pre-generated audio). */
 export function spokenText(step) {
   if (step.part === '2') return `Part 2. ${(step.bullets ?? []).join(' ')}`;
@@ -49,12 +59,12 @@ export function spokenText(step) {
 }
 
 /** The test as sent to the Mini App (no model answers), with the examiner's voice clip per step. */
-export function publicTest(t) {
-  const steps = buildSteps(t).map((s) => {
+export function publicTest(t, part) {
+  const steps = buildSteps(t).filter((s) => !part || s.part === part).map((s) => {
     const file = AUDIO[spokenText(s)];
     return file ? { ...s, audio: `/audio/${file}` } : s;
   });
-  return { id: t.id, title: t.title, topics: t.topics, steps };
+  return { id: t.id, title: part ? `Part ${part} drill · ${t.title}` : t.title, topics: t.topics, steps };
 }
 
 /** Picks a test the user hasn't taken; once all are used, a least-taken one. */

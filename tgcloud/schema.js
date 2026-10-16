@@ -37,6 +37,8 @@ export const sessions = table('sessions', {
   id: text('id').primaryKey(),
   userId: integer('user_id').notNull(),
   testId: text('test_id').notNull(),
+  kind: text('kind').notNull().default('mock'), // mock | drill (one part, free daily allowance)
+  drillPart: text('drill_part'), // 1.1 | 1.2 | 2 | 3 for drills
   status: text('status').notNull().default('in_progress'), // in_progress | grading | done | expired
   score: integer('score'), // 0..75
   level: text('level'), // Below B1 | B1 | B2 | C1
@@ -45,6 +47,7 @@ export const sessions = table('sessions', {
   finishedAt: integer('finished_at'),
 }, (t) => ({
   userIdx: index('idx_sessions_user').on(t.userId, t.createdAt),
+  weekIdx: index('idx_sessions_finished').on(t.finishedAt),
   // At most one unfinished mock per user.
   oneActive: uniqueIndex('uidx_sessions_one_active').on(t.userId).where(sql`status IN ('in_progress', 'grading')`),
 }));

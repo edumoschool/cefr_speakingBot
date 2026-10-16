@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { IonApp, useIonAlert } from '@ionic/react';
 import { api, ApiError } from './api';
 import { tg } from './telegram';
-import type { Me, MockResult, StartResponse } from './types';
+import type { Me, MockResult, PartId, StartResponse } from './types';
 import { Exam } from './screens/Exam';
 import { Gate } from './screens/Gate';
 import { Grading } from './screens/Grading';
@@ -16,7 +16,7 @@ type Screen =
   | { name: 'error'; message: string }
   | { name: 'gate' }
   | { name: 'home' }
-  | { name: 'ready' }
+  | { name: 'ready'; drill?: PartId }
   | { name: 'exam'; start: StartResponse; stream: MediaStream; startIndex: number }
   | { name: 'grading'; sessionId: string }
   | { name: 'result'; result: MockResult };
@@ -68,10 +68,11 @@ export default function App() {
       return m;
     }).catch(() => undefined);
 
-  const begin = async (stream: MediaStream) => {
+  const begin = async (stream: MediaStream, drill?: PartId) => {
     setScreen({ name: 'loading' });
     try {
-      const start = await api.startMock();
+      // Resuming an open session works through either endpoint.
+      const start = drill && !me?.active ? await api.startDrill(drill) : await api.startMock();
       const answered = new Set(start.answered);
       const startIndex = start.test.steps.findIndex((s) => !answered.has(s.key));
       if (startIndex === -1 || start.expired) {
@@ -88,9 +89,9 @@ export default function App() {
     }
   };
 
-  const onStart = () => {
+  const onStart = (drill?: PartId) => {
     if (me?.active?.status === 'grading') setScreen({ name: 'grading', sessionId: me.active.id });
-    else setScreen({ name: 'ready' });
+    else setScreen({ name: 'ready', drill: me?.active ? undefined : drill });
   };
 
   const openResult = async (id: string) => {
@@ -114,7 +115,15 @@ export default function App() {
       case 'home':
         return me && <Home me={me} onStart={onStart} onOpenResult={openResult} onRefresh={refreshMe} />;
       case 'ready':
-        return <Ready resuming={!!me?.active} botUsername={me?.botUsername ?? ''} onBegin={begin} onBack={() => setScreen({ name: 'home' })} />;
+        return (
+          <Ready
+            resuming={!!me?.active}
+            drill={screen.drill}
+            botUsername={me?.botUsername ?? ''}
+            onBegin={(stream) => begin(stream, screen.drill)}
+            onBack={() => setScreen({ name: 'home' })}
+          />
+        );
       case 'exam':
         return (
           <Exam

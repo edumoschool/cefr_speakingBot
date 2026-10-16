@@ -66,3 +66,11 @@ export function totalScore(parts) {
   }
   return { score, level: cefrFromScore(score), criteria };
 }
+
+/** A drill is scored on its one part alone (same 0–75 scale and bands). */
+export function drillScore(part) {
+  const score = Math.round(part.points);
+  const criteria = {};
+  for (const c of CRITERIA) criteria[c] = LEVEL_POINTS[part.criteria[c]];
+  return { score, level: cefrFromScore(score), criteria };
+}

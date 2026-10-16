@@ -14,6 +14,9 @@ export const REFERRALS_PER_ATTEMPT = 3; // friends who join the channel per +1 a
 export const OPENAI_MODEL = 'gpt-5.4-mini'; // any chat model with json_schema structured outputs
 export const DEEPGRAM_MODEL = 'nova-3';
 
+// Free single-part practice drills per user per day (UTC). They don't use mock attempts.
+export const DRILLS_PER_DAY = 3;
+
 // Unfinished mocks stop accepting answers after this long (they can still be graded).
 export const SESSION_TTL_SEC = 3 * 60 * 60;
 

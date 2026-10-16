@@ -44,6 +44,7 @@ async function devCall<T>(name: string, input: Record<string, unknown>): Promise
 export const api = {
   me: () => call<Me>('me'),
   startMock: () => call<StartResponse>('start_mock'),
+  startDrill: (part: string) => call<StartResponse>('start_drill', { part }),
   uploadChunk: (input: { session: string; key: string; index: number; total: number; mime: string; data: string }) =>
     call<{ done: boolean }>('upload_answer', input),
   gradePart: (session: string, part: string) => call<{ ok: true }>('grade_part', { session, part }),

@@ -5,7 +5,7 @@ import { unlockAudio } from '../audio';
 
 export const prefs = { readAloud: true };
 
-export function Ready({ resuming, botUsername, onBegin, onBack }: { resuming: boolean; botUsername: string; onBegin: (s: MediaStream) => void; onBack: () => void }) {
+export function Ready({ resuming, drill, botUsername, onBegin, onBack }: { resuming: boolean; drill?: string; botUsername: string; onBegin: (s: MediaStream) => void; onBack: () => void }) {
   const [readAloud, setReadAloud] = useState(prefs.readAloud);
   const [alert] = useIonAlert();
 
@@ -35,7 +35,7 @@ export function Ready({ resuming, botUsername, onBegin, onBack }: { resuming: bo
       <IonContent className="ion-padding">
         <div className="center-page">
           <div className="big-emoji">🎙️</div>
-          <h1>{resuming ? 'Continue your mock' : 'Ready to start?'}</h1>
+          <h1>{resuming ? 'Continue where you left off' : drill ? `Part ${drill} drill` : 'Ready to start?'}</h1>
           <p className="hint">
             Find a quiet place. The examiner reads each question, then you get a short preparation time and recording starts automatically with a beep. Speak until
             the timer ends, or tap “Finish answer”.

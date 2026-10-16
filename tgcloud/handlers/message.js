@@ -7,6 +7,7 @@ import { KEYS, setSetting } from '../lib/settings.js';
 import { getUser, grantAttempts, openAppKeyboard, refreshMembership, upsertUser } from '../lib/users.js';
 import { parseRefPayload } from '../lib/util.js';
 import { finishInChat, onVoice, startChatMock } from '../lib/chatmode.js';
+import { leaderboardText, myWeeklyRank, weeklyTop } from '../lib/leaderboard.js';
 
 export default async function (message) {
   if (message.chat?.type !== 'private' || !message.from || message.from.is_bot) return;
@@ -66,6 +67,31 @@ Please include the payment code from your receipt. Unused purchases can be refun
       } catch (e) {
         return api.sendMessage({ chat_id: from.id, text: `Refund failed: ${e.description ?? e.message}` });
       }
+    case '/top': {
+      const mine = await myWeeklyRank(from.id);
+      return api.sendMessage({
+        chat_id: from.id,
+        parse_mode: 'HTML',
+        text: leaderboardText(await weeklyTop(10)) + (mine ? `\n\nYou: #${mine.rank} with ${mine.score}/75` : '\n\nFinish a mock this week to get on the board.'),
+        reply_markup: await openAppKeyboard('🎤 Take a mock'),
+      });
+    }
+    case '/leaderboard': {
+      // Admin: post this week's board to the channel (the bot needs "Post messages" there).
+      if (!isAdmin) break;
+      const me = await api.getMe();
+      try {
+        await api.sendMessage({
+          chat_id: CHANNEL_ID,
+          parse_mode: 'HTML',
+          text: leaderboardText(await weeklyTop(10)) + '\n\n🎤 Practise the Multilevel speaking exam with instant AI scoring:',
+          reply_markup: { inline_keyboard: [[{ text: '🎁 Take a free mock', url: `https://t.me/${me.username}?start=board` }]] },
+        });
+        return api.sendMessage({ chat_id: from.id, text: '✅ Leaderboard posted to the channel.' });
+      } catch (e) {
+        return api.sendMessage({ chat_id: from.id, text: `Could not post: ${e.description ?? e.message}. Give the bot "Post messages" rights in the channel.` });
+      }
+    }
     case '/lang':
       return api.sendMessage({
         chat_id: from.id,
@@ -165,6 +191,7 @@ async function setup(chat_id, url) {
       { command: 'start', description: 'Open the speaking mock' },
       { command: 'voice', description: 'Take the mock here in chat with voice messages' },
       { command: 'referral', description: 'Invite friends and earn free mocks' },
+      { command: 'top', description: 'This week\'s top speakers' },
       { command: 'lang', description: 'Feedback language: English / Oʻzbekcha / Русский' },
       { command: 'buy', description: 'Get more mocks with Telegram Stars' },
       { command: 'paysupport', description: 'Help with a payment' },

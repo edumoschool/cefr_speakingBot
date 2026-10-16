@@ -1,9 +1,9 @@
 import { db, EndpointError } from 'sdk';
 import { sql } from 'sdk/db';
-import { SESSION_TTL_SEC } from './config.js';
-import { buildSteps, getTest, modelAnswer, PARTS, pickTest } from './exam.js';
+import { DRILLS_PER_DAY, SESSION_TTL_SEC } from './config.js';
+import { getTest, modelAnswer, PARTS, pickTest, sessionParts, sessionSteps } from './exam.js';
 import { gradePart as llmGradePart, summarize } from './grading.js';
-import { CRITERIA, scorePart, totalScore } from './scoring.js';
+import { CRITERIA, drillScore, scorePart, totalScore } from './scoring.js';
 import { transcribe } from './speech.js';
 import { base64ToBytes, concatBytes, newId, nowSec } from './util.js';
 import { returning } from './db.js';
@@ -33,7 +33,7 @@ export async function settleExpired(session) {
   if ((await answeredKeys(session.id)).length) return session;
   const closed = await returning(sql`UPDATE sessions SET status = 'expired', finished_at = unixepoch()
                                      WHERE id = ${session.id} AND status = 'in_progress' RETURNING id`);
-  if (closed.length) {
+  if (closed.length && session.kind !== 'drill') {
     await db.run(sql`UPDATE users SET attempts = attempts + 1 WHERE id = ${session.user_id}`);
     await db.run(sql`INSERT INTO attempt_ledger (user_id, delta, reason, session_id) VALUES (${session.user_id}, 1, 'refund', ${session.id})`);
   }
@@ -59,7 +59,7 @@ export async function gradedParts(sessionId) {
 export async function getOwnSession(id, userId) {
   if (typeof id !== 'string' || !/^[0-9a-f]{32}$/.test(id)) throw fail('BAD_REQUEST', 'Bad session id');
   const s = await db.get(sql`SELECT * FROM sessions WHERE id = ${id} AND user_id = ${userId}`);
-  if (!s) throw fail('NOT_FOUND', 'Mock not found');
+  if (!s) throw fail('NOT_FOUND', 'Not found');
   return s;
 }
 
@@ -93,9 +93,39 @@ export async function startSession(userId) {
   return db.get(sql`SELECT * FROM sessions WHERE id = ${id}`);
 }
 
+/**
+ * Opens a free single-part drill. The daily limit is checked inside the INSERT
+ * (one atomic statement), so parallel taps can't exceed it.
+ */
+export async function startDrill(userId, part) {
+  if (!PARTS.includes(part)) throw fail('BAD_REQUEST', 'Unknown part');
+  if (await activeSession(userId)) throw fail('ACTIVE_SESSION', 'Finish your current practice first.');
+  const taken = await db.all(sql`SELECT test_id FROM sessions WHERE user_id = ${userId} AND (kind = 'mock' OR drill_part = ${part})`);
+  const test = pickTest(taken.map((r) => r.test_id));
+  const id = newId();
+  let rows;
+  try {
+    rows = await returning(sql`
+      INSERT INTO sessions (id, user_id, test_id, kind, drill_part)
+      SELECT ${id}, ${userId}, ${test.id}, 'drill', ${part}
+      WHERE (SELECT count(*) FROM sessions WHERE user_id = ${userId} AND kind = 'drill'
+             AND created_at >= unixepoch('now', 'start of day')) < ${DRILLS_PER_DAY}
+      RETURNING id`);
+  } catch {
+    throw fail('ACTIVE_SESSION', 'Finish your current practice first.');
+  }
+  if (!rows.length) throw fail('NO_DRILLS', `You've used today's ${DRILLS_PER_DAY} free drills. Come back tomorrow, or take a full mock.`);
+  return db.get(sql`SELECT * FROM sessions WHERE id = ${id}`);
+}
+
+export async function drillsLeftToday(userId) {
+  const r = await db.get(sql`SELECT count(*) AS n FROM sessions WHERE user_id = ${userId} AND kind = 'drill'
+                             AND created_at >= unixepoch('now', 'start of day')`);
+  return Math.max(0, DRILLS_PER_DAY - r.n);
+}
+
 export function stepFor(session, key) {
-  const test = getTest(session.test_id);
-  const step = test && buildSteps(test).find((s) => s.key === key);
+  const step = getTest(session.test_id) && sessionSteps(session).find((s) => s.key === key);
   if (!step) throw fail('BAD_STEP', 'Unknown question');
   return step;
 }
@@ -158,7 +188,7 @@ export async function saveAudioAnswer(session, step, audio, mime) {
 /** The first question without an answer, or null when all are answered. */
 export async function nextStep(session) {
   const done = new Set(await answeredKeys(session.id));
-  return buildSteps(getTest(session.test_id)).find((s) => !done.has(s.key)) ?? null;
+  return sessionSteps(session).find((s) => !done.has(s.key)) ?? null;
 }
 
 function toBytes(v) {
@@ -170,7 +200,7 @@ function emptyMetrics(allowedSec) {
 }
 
 async function partAnswers(session, part) {
-  const steps = buildSteps(getTest(session.test_id)).filter((s) => s.part === part);
+  const steps = sessionSteps(session).filter((s) => s.part === part);
   const rows = await db.all(sql`SELECT step_key, transcript, metrics FROM answers WHERE session_id = ${session.id}`);
   const byKey = new Map(rows.map((r) => [r.step_key, r]));
   return steps
@@ -183,7 +213,7 @@ async function partAnswers(session, part) {
  * request died) can be taken over. Returns the stored result.
  */
 export async function gradeSessionPart(session, part) {
-  if (!PARTS.includes(part)) throw fail('BAD_REQUEST', 'Unknown part');
+  if (!sessionParts(session).includes(part)) throw fail('BAD_REQUEST', 'Unknown part');
   const now = nowSec();
   let locked = (await returning(sql`INSERT INTO part_grades (session_id, part, status, updated_at)
                                  VALUES (${session.id}, ${part}, 'running', ${now}) ON CONFLICT DO NOTHING RETURNING part`)).length > 0;
@@ -228,7 +258,7 @@ export async function finishSession(id, userId) {
 
     const parts = [];
     const steps = [];
-    for (const part of PARTS) {
+    for (const part of sessionParts(session)) {
       const llm = await gradeSessionPart(session, part);
       const answers = await partAnswers(session, part);
       const words = answers.reduce((s, a) => s + a.metrics.wordCount, 0);
@@ -237,9 +267,13 @@ export async function finishSession(id, userId) {
       parts.push({ part, criteria, points, words, feedback: llm?.feedback ?? (answers.length ? '' : 'Not answered.'), llm });
       steps.push(...answers);
     }
-    const total = totalScore(parts);
-    const summary = await summarize(parts, total.score, total.level, await feedbackLang(userId));
-    const result = buildResult(test, parts, steps, total, summary);
+    const drill = session.kind === 'drill';
+    const total = drill ? drillScore(parts[0]) : totalScore(parts);
+    // A drill's one part already carries its feedback; only full mocks get a summary call.
+    const summary = drill
+      ? { overall_feedback: parts[0].feedback, strengths: [], priorities: [] }
+      : await summarize(parts, total.score, total.level, await feedbackLang(userId));
+    const result = buildResult(test, session, parts, steps, total, summary);
     await db.run(sql`UPDATE sessions SET status = 'done', score = ${total.score}, level = ${total.level},
                      result = ${JSON.stringify(result)}, finished_at = unixepoch() WHERE id = ${id}`);
     await db.run(sql`DELETE FROM audio_chunks WHERE session_id = ${id}`);
@@ -250,13 +284,15 @@ export async function finishSession(id, userId) {
   }
 }
 
-function buildResult(test, parts, answered, total, summary) {
+function buildResult(test, session, parts, answered, total, summary) {
   const all = (k) => parts.flatMap((p) => p.llm?.[k] ?? []);
   const comments = new Map(all('steps').map((s) => [s.key, s.comment]));
   const byKey = new Map(answered.map((a) => [a.step.key, a]));
   return {
     testId: test.id,
-    testTitle: test.title,
+    testTitle: session.kind === 'drill' ? `Part ${session.drill_part} drill · ${test.title}` : test.title,
+    kind: session.kind,
+    drillPart: session.drill_part ?? null,
     score: total.score,
     level: total.level,
     criteria: total.criteria,
@@ -268,7 +304,7 @@ function buildResult(test, parts, answered, total, summary) {
     vocabulary: all('vocabulary_upgrades').slice(0, 10),
     pronunciation: [...new Set(all('pronunciation_tips'))].slice(0, 5),
     criteriaNames: CRITERIA,
-    answers: buildSteps(test).map((st) => ({
+    answers: sessionSteps(session).map((st) => ({
       key: st.key,
       part: st.part,
       question: st.question,

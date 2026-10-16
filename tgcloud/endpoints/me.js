@@ -2,10 +2,11 @@
 // referral progress, unfinished mock and history.
 import { api, db } from 'sdk';
 import { sql } from 'sdk/db';
-import { CHANNEL_URL, REFERRALS_PER_ATTEMPT, STAR_PACKS } from '../lib/config.js';
+import { CHANNEL_URL, DRILLS_PER_DAY, REFERRALS_PER_ATTEMPT, STAR_PACKS } from '../lib/config.js';
+import { myWeeklyRank, weeklyTop } from '../lib/leaderboard.js';
 import { paymentsEnabled } from '../lib/payments.js';
 import { getTest } from '../lib/exam.js';
-import { activeSession, answeredKeys, isExpired, settleExpired } from '../lib/sessions.js';
+import { activeSession, answeredKeys, drillsLeftToday, isExpired, settleExpired } from '../lib/sessions.js';
 import { parseRefPayload } from '../lib/util.js';
 import { getUser, refreshMembership, upsertUser } from '../lib/users.js';
 
@@ -20,7 +21,7 @@ export default async function (input, ctx) {
   const user = await getUser(from.id);
   botUsername ??= (await api.getMe()).username;
 
-  const history = await db.all(sql`SELECT id, test_id, score, level, created_at, json_extract(result, '$.criteria') AS criteria
+  const history = await db.all(sql`SELECT id, test_id, kind, drill_part, score, level, created_at, json_extract(result, '$.criteria') AS criteria
                                    FROM sessions WHERE user_id = ${from.id} AND status = 'done' ORDER BY created_at DESC LIMIT 20`);
   const per = REFERRALS_PER_ATTEMPT;
   return {
@@ -29,6 +30,8 @@ export default async function (input, ctx) {
     channelUrl: CHANNEL_URL,
     botUsername,
     feedbackLang: user.feedback_lang,
+    drills: { perDay: DRILLS_PER_DAY, left: await drillsLeftToday(from.id) },
+    leaderboard: { top: (await weeklyTop(10)).map(({ userId, ...t }) => ({ ...t, me: userId === from.id })), mine: await myWeeklyRank(from.id) },
     shop: (await paymentsEnabled()) ? STAR_PACKS : null,
     referral: {
       link: `https://t.me/${botUsername}?start=ref_${from.id}`,
@@ -37,10 +40,11 @@ export default async function (input, ctx) {
       progress: user.ref_qualified_count % per,
     },
     active: active
-      ? { id: active.id, status: isExpired(active) ? 'grading' : active.status, testTitle: getTest(active.test_id)?.title, answered: await answeredKeys(active.id) }
+      ? { id: active.id, kind: active.kind, drillPart: active.drill_part, status: isExpired(active) ? 'grading' : active.status, testTitle: getTest(active.test_id)?.title, answered: await answeredKeys(active.id) }
       : null,
     history: history.map((h) => ({
-      id: h.id, title: getTest(h.test_id)?.title ?? h.test_id, score: h.score, level: h.level, date: h.created_at,
+      id: h.id, kind: h.kind, title: (h.kind === 'drill' ? `Part ${h.drill_part} drill · ` : '') + (getTest(h.test_id)?.title ?? h.test_id),
+      score: h.score, level: h.level, date: h.created_at,
       criteria: h.criteria ? JSON.parse(h.criteria) : null,
     })),
   };

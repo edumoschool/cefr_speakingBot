@@ -17,6 +17,7 @@ import getResult from '../tgcloud/endpoints/get_result.js';
 import createInvoice from '../tgcloud/endpoints/create_invoice.js';
 import onPreCheckout from '../tgcloud/handlers/pre_checkout_query.js';
 import setPrefs from '../tgcloud/endpoints/set_prefs.js';
+import startDrill from '../tgcloud/endpoints/start_drill.js';
 import { CHANNEL_ID } from '../tgcloud/lib/config.js';
 
 const ctx = (id, extra = {}) => ({ initData: { user: { id, first_name: `U${id}` }, ...extra } });
@@ -405,4 +406,90 @@ test('english feedback adds no language rule', async () => {
   await finishMock({ session: session.id }, ctx(1400));
   fake.fetch = realFetch;
   assert.ok(prompts.length >= 2 && prompts.every((p) => !p.includes('LANGUAGE:')));
+});
+
+// ---- drills, leaderboard
+async function recordFor(userId, sessionId, key) {
+  const data = Buffer.alloc(6000, 7).toString('base64');
+  return uploadAnswer({ session: sessionId, key, index: 0, total: 1, mime: 'audio/webm', data }, ctx(userId));
+}
+
+test('drills: free single part, daily limit, scored on that part only', async () => {
+  const { DRILLS_PER_DAY } = await import('../tgcloud/lib/config.js');
+  fake.channelMembers = new Set([1500]);
+  let m = await me({}, ctx(1500));
+  assert.deepEqual(m.drills, { perDay: DRILLS_PER_DAY, left: DRILLS_PER_DAY });
+
+  const d = await startDrill({ part: '2' }, ctx(1500));
+  assert.equal(d.session.kind, 'drill');
+  assert.deepEqual(d.test.steps.map((s) => s.key), ['p2']);
+  assert.match(d.test.title, /^Part 2 drill/);
+  assert.equal(attempts(1500), 1, 'drills never spend mock attempts');
+  // one open session at a time; start_mock resumes the open drill
+  assert.equal((await startMock({}, ctx(1500))).session.id, d.session.id);
+  assert.equal((await startDrill({ part: '3' }, ctx(1500))).session.id, d.session.id, 'resumes the open drill');
+  await assert.rejects(recordFor(1500, d.session.id, 'p1_1_1'), (e) => e.parameters.code === 'BAD_STEP', 'other parts are not part of a drill');
+
+  await recordFor(1500, d.session.id, 'p2');
+  const r = (await finishMock({ session: d.session.id }, ctx(1500))).result;
+  assert.equal(calls.openai, 1, 'one part graded, no summary call');
+  assert.equal(r.kind, 'drill');
+  assert.equal(r.parts.length, 1);
+  assert.equal(r.answers.length, 1);
+  assert.equal(r.score, Math.round(r.parts[0].points));
+  assert.match(fake.sent.filter((c) => c.method === 'sendMessage').at(-1).params.text, /Part 2 drill result/);
+
+  m = await me({}, ctx(1500));
+  assert.equal(m.drills.left, DRILLS_PER_DAY - 1);
+  assert.equal(m.history[0].kind, 'drill');
+  assert.equal(m.leaderboard.mine, null, 'drills do not count for the leaderboard');
+
+  // use up the allowance
+  for (let i = 1; i < DRILLS_PER_DAY; i++) {
+    const x = await startDrill({ part: '1.1' }, ctx(1500));
+    await recordFor(1500, x.session.id, 'p1_1_1');
+    await finishMock({ session: x.session.id }, ctx(1500));
+  }
+  await assert.rejects(startDrill({ part: '3' }, ctx(1500)), (e) => e.parameters.code === 'NO_DRILLS');
+  await assert.rejects(startDrill({ part: '9' }, ctx(1501)), () => true);
+});
+
+test('expired drill is closed without refunding a mock attempt', async () => {
+  fake.channelMembers = new Set([1600]);
+  await me({}, ctx(1600));
+  const d = await startDrill({ part: '3' }, ctx(1600));
+  _database().prepare('UPDATE sessions SET created_at = created_at - 4 * 3600 WHERE id = ?').run(d.session.id);
+  const m = await me({}, ctx(1600));
+  assert.equal(m.active, null);
+  assert.equal(m.user.attempts, 1);
+  assert.equal(q1('SELECT status FROM sessions WHERE id = ?', d.session.id).status, 'expired');
+});
+
+test('weekly leaderboard: best full mock per student, own rank, /top and channel post', async () => {
+  const { ADMIN_IDS, CHANNEL_ID } = await import('../tgcloud/lib/config.js');
+  const ins = _database().prepare(`INSERT INTO sessions (id, user_id, test_id, kind, status, score, level, created_at, finished_at)
+                                   VALUES (?, ?, 'rb01', ?, 'done', ?, 'B1', unixepoch(), unixepoch() - ?)`);
+  for (const [uid, name] of [[1701, 'Aziza Karimova'], [1702, 'Bekzod'], [1703, 'Old']]) await onMessage({ ...msg(uid, '/balance'), from: { id: uid, first_name: name } });
+  ins.run('a'.repeat(32), 1701, 'mock', 60, 3600);
+  ins.run('b'.repeat(32), 1701, 'mock', 52, 7200); // lower score, same user
+  ins.run('c'.repeat(32), 1702, 'mock', 66, 3600);
+  ins.run('d'.repeat(32), 1702, 'drill', 75, 3600); // drills don't count
+  ins.run('e'.repeat(32), 1703, 'mock', 74, 9 * 86400); // older than a week
+
+  const m = await me({}, { initData: { user: { id: 1701, first_name: 'Aziza Karimova' } } });
+  assert.deepEqual(m.leaderboard.top.map((t) => [t.rank, t.name, t.score, t.me]), [[1, 'Bekzod', 66, false], [2, 'Aziza', 60, true]]);
+  assert.deepEqual(m.leaderboard.mine, { rank: 2, score: 60 });
+
+  await onMessage({ ...msg(1702, '/top'), from: { id: 1702, first_name: 'Bekzod' } });
+  assert.match(fake.sent.filter((c) => c.method === 'sendMessage').at(-1).params.text, /🥇 Bekzod — <b>66\/75<\/b>[\s\S]*You: #1/);
+  await onMessage(msg(ADMIN_IDS[0], '/leaderboard'));
+  assert.ok(fake.sent.some((c) => c.method === 'sendMessage' && c.params.chat_id === CHANNEL_ID && /Top speakers this week/.test(c.params.text)));
+});
+
+test('chat mode sends the examiner clip with each question', async () => {
+  fake.channelMembers = new Set([1800]);
+  await onMessage(msg(1800, '/voice'));
+  const audio = fake.sent.filter((c) => c.method === 'sendAudio').at(-1);
+  assert.ok(audio, 'sendAudio was called');
+  assert.match(audio.params.audio, /^https:\/\/app1\.tgcloud\.ai\/audio\/[0-9a-f]{12}\.mp3$/);
 });

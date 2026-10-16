@@ -6,9 +6,14 @@ export interface Me {
   /** Stars packs for sale, or null while payments are off. */
   shop: { id: string; attempts: number; stars: number }[] | null;
   referral: { link: string; qualified: number; per: number; progress: number };
-  active: { id: string; status: 'in_progress' | 'grading'; testTitle?: string; answered: string[] } | null;
-  history: { id: string; title: string; score: number; level: string; date: number; criteria: Record<string, number> | null }[];
+  active: { id: string; kind: 'mock' | 'drill'; drillPart: PartId | null; status: 'in_progress' | 'grading'; testTitle?: string; answered: string[] } | null;
+  history: { id: string; kind: 'mock' | 'drill'; title: string; score: number; level: string; date: number; criteria: Record<string, number> | null }[];
   feedbackLang: 'en' | 'uz' | 'ru';
+  drills: { perDay: number; left: number };
+  leaderboard: {
+    top: { rank: number; name: string; score: number; level: string; me: boolean }[];
+    mine: { rank: number; score: number } | null;
+  };
 }
 
 export type PartId = '1.1' | '1.2' | '2' | '3';
@@ -34,7 +39,7 @@ export interface TestView {
 }
 
 export interface StartResponse {
-  session: { id: string; status: string };
+  session: { id: string; status: string; kind: 'mock' | 'drill' };
   expired: boolean;
   test: TestView;
   answered: string[];
@@ -51,6 +56,8 @@ export interface Metrics {
 
 export interface MockResult {
   testTitle: string;
+  kind?: 'mock' | 'drill';
+  drillPart?: PartId | null;
   score: number;
   level: string;
   criteria: Record<string, number>;

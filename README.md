@@ -15,6 +15,9 @@ score out of 75, a CEFR level (B1 / B2 / C1) and detailed feedback.
 - **Feedback in English, O'zbekcha or Русский** (Mini App or `/lang`). Corrections and better word choices stay in English.
 - **Progress tracking**: a score trend across mocks with the B1/B2/C1 thresholds, and the change in each criterion since the last mock.
 - **Share my result**: posts the score together with the student's referral link.
+- **Part drills**: practise one part (1.1, 1.2, 2 or 3) for free, `DRILLS_PER_DAY` per day (3 by default). Drills don't use mock attempts and cost about a quarter of a mock to grade.
+- **Weekly leaderboard**: each student's best full-mock score over the last 7 days (first names only), with their own rank. It's computed when someone looks at it, so no scheduler is needed. `/top` shows it in chat, and admin `/leaderboard` posts it to the channel.
+- **Examiner voice in chat mode**: each question in the bot chat comes with the same recorded clip.
 - 34 complete mocks taken from your PDFs, with 102 exam pictures and model answers for the 14 Mock Book tests.
 
 ## Project layout
@@ -27,7 +30,7 @@ tgcloud/                     ← deployed to Telegram Serverless (runs in a V8 i
   handlers/chat_member.js    channel join events → referral credit
   handlers/pre_checkout_query.js  Stars payment validation
   endpoints/                 called by the Mini App as POST /api/<name>
-    me · start_mock · upload_answer · grade_part · finish_mock · get_result · create_invoice · set_prefs
+    me · start_mock · start_drill · upload_answer · grade_part · finish_mock · get_result · create_invoice · set_prefs
   lib/                       config, exam structure, scoring, Deepgram, OpenAI, sessions, users, question bank
 src/                         React + Ionic Mini App (Vite) → built to dist/ → hosted by tgcloud
 public/img, public/audio     exam pictures and examiner voice clips (scripts/generate-audio.mjs)
@@ -97,8 +100,8 @@ Then, in Telegram:
    - `/setup https://app<id>.tgcloud.ai/` sets the Mini App URL, the menu button and the command list, and checks the channel admin rights.
 3. Optionally, set the Mini App in @BotFather (`/newapp` or Main Mini App) with the same URL, so that `t.me/<bot>/<app>?startapp=ref_<id>` also works.
 
-User commands: `/start`, `/voice` (mock in chat), `/finish`, `/referral`, `/balance`, `/lang`, `/buy`, `/paysupport`.
-Admin commands: `/stats`, `/grant <userId> <n>`, `/payments on|off`, `/refund <charge_id>`, `/setkey`, `/setup`.
+User commands: `/start`, `/voice` (mock in chat), `/finish`, `/referral`, `/balance`, `/top`, `/lang`, `/buy`, `/paysupport`.
+Admin commands: `/stats`, `/grant <userId> <n>`, `/leaderboard` (post to the channel; the bot needs "Post messages" rights), `/payments on|off`, `/refund <charge_id>`, `/setkey`, `/setup`.
 Before turning payments on, set `SUPPORT_CONTACT` and review `STAR_PACKS` in `tgcloud/lib/config.js`. Schema changes: edit `tgcloud/schema.js`, then run `npm run deploy` and `npx tgcloud migrate`.
 
 ## Local development
@@ -132,5 +135,4 @@ A mock has about 10 minutes of speech. Deepgram nova-3 costs roughly $0.04 for t
 ## Roadmap ideas
 
 - **Stronger referral anti-fraud**: credit a referral only after the friend finishes their free mock, or re-check later that they're still in the channel.
-- **Part drills** (for example Part 3 only) for 1/4 attempt, and a weekly leaderboard posted to the channel.
 - **Calibration**: have teachers score about 50 real recordings and tune `LEVEL_POINTS` / `PART_WEIGHTS` in `tgcloud/lib/scoring.js`.

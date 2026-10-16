@@ -3,7 +3,7 @@
 // same sessions, attempts, transcription and grading as the Mini App.
 import { api, EndpointError } from 'sdk';
 import { activeSession, checkOpen, finishSession, gradeSessionPart, isExpired, nextStep, saveAudioAnswer, settleExpired, startSession } from './sessions.js';
-import { getTest, buildSteps } from './exam.js';
+import { getTest, publicTest, sessionSteps } from './exam.js';
 import { getSetting, KEYS } from './settings.js';
 import { openAppKeyboard, refreshMembership } from './users.js';
 import { escapeHtml } from './util.js';
@@ -44,7 +44,7 @@ export async function startChatMock(userId) {
 }
 
 export async function sendQuestion(chatId, session, step) {
-  const steps = buildSteps(getTest(session.test_id));
+  const steps = sessionSteps(session);
   const n = steps.findIndex((s) => s.key === step.key) + 1;
   const appUrl = await getSetting(KEYS.app_url);
   const img = (path) => (appUrl ? appUrl.replace(/\/$/, '') + path : null);
@@ -65,12 +65,21 @@ export async function sendQuestion(chatId, session, step) {
     body = `<b>${escapeHtml(t.statement)}</b>\n\n✅ <b>FOR</b>\n${t.for.map((x) => `• ${escapeHtml(x)}`).join('\n')}\n\n❌ <b>AGAINST</b>\n${t.against.map((x) => `• ${escapeHtml(x)}`).join('\n')}`;
   } else body = `<b>${escapeHtml(step.question)}</b>`;
 
-  return api.sendMessage({
+  await api.sendMessage({
     chat_id: chatId,
     parse_mode: 'HTML',
     text: `📝 <b>Part ${step.part}</b> · question ${n}/${steps.length}\n\n${body}\n\n` +
       `⏱ Prepare ${step.prepSec} s, then send a 🎤 voice message (max ${fmt(step.speakSec)}).`,
   });
+  // The examiner's recorded voice, hosted with the Mini App (same clip as in the app).
+  const clip = publicTest(getTest(session.test_id)).steps.find((s) => s.key === step.key)?.audio;
+  if (clip && appUrl) {
+    try {
+      await api.sendAudio({ chat_id: chatId, audio: img(clip), title: `Part ${step.part} · question ${n}`, performer: 'Examiner', disable_notification: true });
+    } catch (e) {
+      console.warn('examiner clip failed', e.description ?? String(e));
+    }
+  }
 }
 
 const fmt = (s) => (s >= 60 ? `${s / 60} min` : `${s} s`);
@@ -134,12 +143,12 @@ export async function finishInChat(userId, session) {
 /** Headline result in chat with a button to the full feedback in the Mini App. */
 export async function sendResultMessage(userId, session) {
   const r = typeof session.result === 'string' ? JSON.parse(session.result) : session.result;
-  const parts = r.parts.map((p) => `Part ${p.part}: ${Math.round(p.points)}/75`).join(' · ');
+  const parts = r.kind === 'drill' ? '' : r.parts.map((p) => `Part ${p.part}: ${Math.round(p.points)}/75`).join(' · ');
   try {
     await api.sendMessage({
       chat_id: userId,
       parse_mode: 'HTML',
-      text: `📊 <b>Your Multilevel speaking result</b>\n${escapeHtml(r.testTitle)}\n\n` +
+      text: `📊 <b>${r.kind === 'drill' ? `Part ${escapeHtml(r.drillPart)} drill result` : 'Your Multilevel speaking result'}</b>\n${escapeHtml(r.testTitle)}\n\n` +
         `Score: <b>${r.score}/75</b> · Level: <b>${escapeHtml(r.level)}</b>\n${parts}\n\n${escapeHtml(r.overall)}` +
         (r.priorities?.length ? `\n\n🎯 <b>Focus next</b>\n${r.priorities.map((x) => `• ${escapeHtml(x)}`).join('\n')}` : ''),
       reply_markup: await openAppKeyboard('📄 Full feedback', `#result=${session.id}`),

@@ -8,11 +8,48 @@ import { api } from '../api';
 import { ProgressCard } from './Progress';
 import { levelColor } from '../levels';
 import { haptic, openTelegramLink, tg } from '../telegram';
-import type { Me } from '../types';
+import type { Me, PartId } from '../types';
+
+const DRILLS: { part: PartId; label: string }[] = [
+  { part: '1.1', label: '3 short questions' },
+  { part: '1.2', label: 'Pictures + 2 questions' },
+  { part: '2', label: 'Cue card · 2 min' },
+  { part: '3', label: 'For & against · 2 min' },
+];
+
+function LeaderboardCard({ board }: { board: Me['leaderboard'] }) {
+  return (
+    <IonCard>
+      <IonCardHeader>
+        <IonCardTitle>🏆 Top speakers this week</IonCardTitle>
+        <IonCardSubtitle>
+          {board.mine ? `You: #${board.mine.rank} with ${board.mine.score}/75` : 'Finish a full mock this week to join the board'}
+        </IonCardSubtitle>
+      </IonCardHeader>
+      {board.top.length === 0 ? (
+        <IonCardContent>
+          <p className="hint">No mocks finished this week yet — be the first!</p>
+        </IonCardContent>
+      ) : (
+        <IonList lines="none">
+          {board.top.map((t) => (
+            <IonItem key={t.rank} className={t.me ? 'board-me' : ''}>
+              <span slot="start" className="board-rank">{['🥇', '🥈', '🥉'][t.rank - 1] ?? t.rank}</span>
+              <IonLabel>{t.name}{t.me ? ' (you)' : ''}</IonLabel>
+              <IonNote slot="end">
+                <b>{t.score}</b>/75 <IonBadge color={levelColor(t.level)}>{t.level}</IonBadge>
+              </IonNote>
+            </IonItem>
+          ))}
+        </IonList>
+      )}
+    </IonCard>
+  );
+}
 
 const SHARE_TEXT = '🎤 Practise the Multilevel speaking exam with instant AI scoring — your first mock is free!';
 
-export function Home({ me, onStart, onOpenResult, onRefresh }: { me: Me; onStart: () => void; onOpenResult: (id: string) => void; onRefresh: () => Promise<Me | undefined> }) {
+export function Home({ me, onStart, onOpenResult, onRefresh }: { me: Me; onStart: (drill?: PartId) => void; onOpenResult: (id: string) => void; onRefresh: () => Promise<Me | undefined> }) {
   const [toast] = useIonToast();
   const r = me.referral;
   const canStart = !!me.active || me.user.attempts > 0;
@@ -90,9 +127,9 @@ export function Home({ me, onStart, onOpenResult, onRefresh }: { me: Me; onStart
                 <IonNote>Mock attempts</IonNote>
                 <div className="attempts-num" data-testid="attempts">{me.user.attempts}</div>
               </div>
-              <IonButton size="large" disabled={!canStart} onClick={onStart} data-testid="start">
+              <IonButton size="large" disabled={!canStart} onClick={() => onStart()} data-testid="start">
                 <IonIcon slot="start" icon={micOutline} />
-                {me.active ? (me.active.status === 'grading' ? 'See result' : 'Continue') : 'Start mock'}
+                {me.active ? (me.active.status === 'grading' ? 'See result' : me.active.kind === 'drill' ? 'Continue drill' : 'Continue') : 'Start mock'}
               </IonButton>
             </div>
             {me.active && <p className="hint">Unfinished: {me.active.testTitle} · {me.active.answered.length} answers recorded</p>}
@@ -126,7 +163,37 @@ export function Home({ me, onStart, onOpenResult, onRefresh }: { me: Me; onStart
           </IonCardContent>
         </IonCard>
 
-        <ProgressCard history={me.history} />
+        <IonCard>
+          <IonCardHeader>
+            <IonCardTitle>🎯 Practise one part</IonCardTitle>
+            <IonCardSubtitle>
+              Free · {me.drills.left} of {me.drills.perDay} drills left today · scored like the real exam
+            </IonCardSubtitle>
+          </IonCardHeader>
+          <IonCardContent>
+            <div className="drill-grid">
+              {DRILLS.map((d) => (
+                <IonButton
+                  key={d.part}
+                  fill="outline"
+                  disabled={!!me.active || me.drills.left < 1}
+                  onClick={() => onStart(d.part)}
+                  data-testid={`drill-${d.part}`}
+                >
+                  <div className="drill-btn">
+                    <b>Part {d.part}</b>
+                    <span>{d.label}</span>
+                  </div>
+                </IonButton>
+              ))}
+            </div>
+            {me.active && <p className="hint">Finish your open session first.</p>}
+          </IonCardContent>
+        </IonCard>
+
+        <ProgressCard history={me.history.filter((h) => h.kind !== 'drill')} />
+
+        <LeaderboardCard board={me.leaderboard} />
 
         <IonCard>
           <IonCardHeader>

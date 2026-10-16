@@ -13,10 +13,11 @@ export default async function (input, ctx) {
 
   const session = (await settleExpired(await activeSession(userId))) ?? (await startSession(userId));
   return {
-    session: { id: session.id, status: session.status },
+    session: { id: session.id, status: session.status, kind: session.kind },
     // Past its time window but with answers: the app goes straight to grading.
     expired: isExpired(session),
-    test: publicTest(getTest(session.test_id)),
+    // An open drill is resumed too (one open session per user).
+    test: publicTest(getTest(session.test_id), session.kind === 'drill' ? session.drill_part : undefined),
     answered: await answeredKeys(session.id),
     graded: await gradedParts(session.id),
   };
