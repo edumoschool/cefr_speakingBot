@@ -30,6 +30,7 @@ export interface TestView {
 
 export interface StartResponse {
   session: { id: string; status: string };
+  expired: boolean;
   test: TestView;
   answered: string[];
   graded: string[];

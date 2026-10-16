@@ -20,6 +20,27 @@ export async function activeSession(userId) {
                     ORDER BY created_at DESC LIMIT 1`);
 }
 
+export const isExpired = (s) => s.status === 'in_progress' && nowSec() - s.created_at > SESSION_TTL_SEC;
+
+/**
+ * Keeps an unfinished mock past its time window from blocking new ones. With
+ * no answers it is closed as 'expired' and the attempt refunded; with answers it
+ * stays open and callers send the user straight to grading.
+ * @returns the session if it is still active, otherwise null
+ */
+export async function settleExpired(session) {
+  if (!session || !isExpired(session)) return session ?? null;
+  if ((await answeredKeys(session.id)).length) return session;
+  const closed = await returning(sql`UPDATE sessions SET status = 'expired', finished_at = unixepoch()
+                                     WHERE id = ${session.id} AND status = 'in_progress' RETURNING id`);
+  if (closed.length) {
+    await db.run(sql`UPDATE users SET attempts = attempts + 1 WHERE id = ${session.user_id}`);
+    await db.run(sql`INSERT INTO attempt_ledger (user_id, delta, reason, session_id) VALUES (${session.user_id}, 1, 'refund', ${session.id})`);
+  }
+  await db.run(sql`DELETE FROM audio_chunks WHERE session_id = ${session.id}`);
+  return null;
+}
+
 export async function answeredKeys(sessionId) {
   const rows = await db.all(sql`SELECT step_key FROM answers WHERE session_id = ${sessionId}`);
   return rows.map((r) => r.step_key);
@@ -43,6 +64,8 @@ export async function getOwnSession(id, userId) {
  * insert, and a lost race refunds the attempt.
  */
 export async function startSession(userId) {
+  // Housekeeping: drop partial uploads nobody will finish.
+  await db.run(sql`DELETE FROM audio_chunks WHERE created_at < ${nowSec() - SESSION_TTL_SEC}`);
   const taken = await db.all(sql`SELECT test_id FROM sessions WHERE user_id = ${userId}`);
   const test = pickTest(taken.map((r) => r.test_id));
   const spent = await returning(sql`
@@ -214,6 +237,7 @@ export async function finishSession(id, userId) {
     const result = buildResult(test, parts, steps, total, summary);
     await db.run(sql`UPDATE sessions SET status = 'done', score = ${total.score}, level = ${total.level},
                      result = ${JSON.stringify(result)}, finished_at = unixepoch() WHERE id = ${id}`);
+    await db.run(sql`DELETE FROM audio_chunks WHERE session_id = ${id}`);
     return { session: await getOwnSession(id, userId), fresh: true };
   } catch (e) {
     await db.run(sql`UPDATE sessions SET status = 'in_progress' WHERE id = ${id} AND status = 'grading'`);

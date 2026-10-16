@@ -2,7 +2,7 @@
 // A fallback for devices where the Mini App can't use the microphone. Uses the
 // same sessions, attempts, transcription and grading as the Mini App.
 import { api, EndpointError } from 'sdk';
-import { activeSession, finishSession, gradeSessionPart, nextStep, saveAudioAnswer, startSession, checkOpen } from './sessions.js';
+import { activeSession, checkOpen, finishSession, gradeSessionPart, isExpired, nextStep, saveAudioAnswer, settleExpired, startSession } from './sessions.js';
 import { getTest, buildSteps } from './exam.js';
 import { getSetting, KEYS } from './settings.js';
 import { openAppKeyboard, refreshMembership } from './users.js';
@@ -20,7 +20,8 @@ export async function startChatMock(userId) {
       reply_markup: { inline_keyboard: [[{ text: '📢 Join the channel', url: CHANNEL_URL }], [{ text: "✅ I've joined", callback_data: 'check_join' }]] },
     });
   }
-  let session = await activeSession(userId);
+  let session = await settleExpired(await activeSession(userId));
+  if (session && isExpired(session)) return finishInChat(userId, session);
   if (session?.status === 'grading') return api.sendMessage({ chat_id: userId, text: '⏳ Your mock is being assessed. The result will arrive here shortly.' });
   if (!session) {
     try {

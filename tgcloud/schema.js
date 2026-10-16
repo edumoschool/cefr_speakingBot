@@ -24,7 +24,7 @@ export const attemptLedger = table('attempt_ledger', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull(),
   delta: integer('delta').notNull(),
-  reason: text('reason').notNull(), // signup_free | referral_reward | mock_start | refund | admin_grant
+  reason: text('reason').notNull(), // signup_free | referral_reward | mock_start | refund | admin_grant | purchase
   refUserId: integer('ref_user_id'),
   sessionId: text('session_id'),
   createdAt: integer('created_at').notNull().default(sql`(unixepoch())`),
@@ -36,7 +36,7 @@ export const sessions = table('sessions', {
   id: text('id').primaryKey(),
   userId: integer('user_id').notNull(),
   testId: text('test_id').notNull(),
-  status: text('status').notNull().default('in_progress'), // in_progress | grading | done
+  status: text('status').notNull().default('in_progress'), // in_progress | grading | done | expired
   score: integer('score'), // 0..75
   level: text('level'), // Below B1 | B1 | B2 | C1
   result: json('result'),

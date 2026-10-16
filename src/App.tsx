@@ -72,7 +72,10 @@ export default function App() {
       const start = await api.startMock();
       const answered = new Set(start.answered);
       const startIndex = start.test.steps.findIndex((s) => !answered.has(s.key));
-      if (startIndex === -1) return setScreen({ name: 'grading', sessionId: start.session.id });
+      if (startIndex === -1 || start.expired) {
+        stream.getTracks().forEach((t) => t.stop());
+        return setScreen({ name: 'grading', sessionId: start.session.id });
+      }
       tg?.enableClosingConfirmation?.();
       setScreen({ name: 'exam', start, stream, startIndex });
     } catch (e) {

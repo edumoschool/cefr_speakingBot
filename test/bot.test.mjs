@@ -263,3 +263,38 @@ test('voice without a mock in progress points to /voice', async () => {
   assert.match(fake.sent.filter((c) => c.method === 'sendMessage').at(-1).params.text, /Send \/voice/);
   assert.equal(calls.deepgram, 0);
 });
+
+test('expired mock with no answers is closed and refunded, so a new one can start', async () => {
+  fake.channelMembers = new Set([900]);
+  await me({}, ctx(900));
+  const { session } = await startMock({}, ctx(900));
+  assert.equal(attempts(900), 0);
+  _database().prepare('UPDATE sessions SET created_at = created_at - 4 * 3600 WHERE id = ?').run(session.id);
+  _database().prepare("INSERT INTO audio_chunks (session_id, step_key, idx, total, data, created_at) VALUES (?, 'p1_1_1', 0, 2, x'00', unixepoch() - 4 * 3600)").run(session.id);
+  const m = await me({}, ctx(900));
+  assert.equal(m.active, null);
+  assert.equal(m.user.attempts, 1, 'attempt refunded');
+  assert.equal(q1('SELECT status FROM sessions WHERE id = ?', session.id).status, 'expired');
+  assert.equal(q1("SELECT count(*) n FROM attempt_ledger WHERE user_id = 900 AND reason = 'refund'").n, 1);
+  assert.equal(q1('SELECT count(*) n FROM audio_chunks').n, 0, 'orphaned chunks removed');
+  const next = await startMock({}, ctx(900));
+  assert.notEqual(next.session.id, session.id);
+  assert.equal(next.expired, false);
+});
+
+test('expired mock with answers goes to grading instead of blocking', async () => {
+  fake.channelMembers = new Set([500]);
+  await me({}, ctx(500));
+  const { session } = await startMock({}, ctx(500));
+  await record(session.id, 'p1_1_1');
+  _database().prepare('UPDATE sessions SET created_at = created_at - 4 * 3600 WHERE id = ?').run(session.id);
+  const m = await me({}, ctx(500));
+  assert.equal(m.active.status, 'grading', 'home shows "See result"');
+  const again = await startMock({}, ctx(500));
+  assert.equal(again.session.id, session.id);
+  assert.equal(again.expired, true);
+  await assert.rejects(record(session.id, 'p1_1_2'), (e) => e.parameters.code === 'EXPIRED');
+  const done = await finishMock({ session: session.id }, ctx(500));
+  assert.ok(done.result.score >= 0);
+  assert.equal(attempts(500), 0, 'graded mocks are not refunded');
+});
