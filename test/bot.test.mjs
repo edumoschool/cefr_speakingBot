@@ -85,7 +85,7 @@ test('referrals: +1 attempt per 3 friends who join the channel, counted once', a
   await Promise.all([me({}, ctx(204)), me({}, ctx(204)), me({}, ctx(205))]);
   assert.equal(q1('SELECT ref_qualified_count c FROM users WHERE id = 100').c, 5);
   assert.equal(attempts(100), 2);
-  assert.ok(fake.sent.some((c) => c.method === 'sendMessage' && c.params.chat_id === 100 && /earned 1 more mock/.test(c.params.text)));
+  assert.ok(fake.sent.some((c) => c.method === 'sendMessage' && c.params.chat_id === 100 && /got 1 more free test/.test(c.params.text)));
   assert.equal(q1("SELECT count(*) n FROM attempt_ledger WHERE user_id = 100 AND reason = 'referral_reward'").n, 1);
 });
 
@@ -219,7 +219,7 @@ test('chat voice mode: whole mock via voice messages, graded once, result in cha
   assert.equal(attempts(600), 0, 'starting spends the attempt');
   // a voice with no answer yet asks question 1; part 1.2 pictures come from the hosted app
   let texts = () => fake.sent.filter((c) => c.method === 'sendMessage' && c.params.chat_id === 600).map((c) => c.params.text);
-  assert.match(texts().at(-1), /question 1\/8/);
+  assert.match(texts().at(-1), /question 1 of 8/);
 
   for (let i = 0; i < 8; i++) {
     fake.files.set(`f${i}`, new Uint8Array(6000).fill(i + 1));
@@ -236,7 +236,7 @@ test('chat voice mode: whole mock via voice messages, graded once, result in cha
 
   // a stray voice after finishing doesn't spend anything or crash
   await onMessage(voiceMsg(600, 'f0', 10));
-  assert.match(texts().at(-1), /no mock in progress/);
+  assert.match(texts().at(-1), /don’t have a test in progress/);
 });
 
 test('chat voice mode: limits and resume', async () => {
@@ -245,13 +245,13 @@ test('chat voice mode: limits and resume', async () => {
   fake.files.set('long', new Uint8Array(6000).fill(1));
   await onMessage(voiceMsg(700, 'long', 30 + 16)); // part 1.1 limit is 30 s (+15 s grace)
   assert.equal(calls.deepgram, 0, 'over-long voice is not transcribed');
-  assert.match(fake.sent.filter((c) => c.method === 'sendMessage').at(-1).params.text, /limit for this question is 30 s/);
+  assert.match(fake.sent.filter((c) => c.method === 'sendMessage').at(-1).params.text, /the limit is 30 sec/);
 
   await onMessage(voiceMsg(700, 'long', 25));
   assert.equal(q1('SELECT count(*) n FROM answers').n, 1);
   // /voice again resumes at question 2 without spending another attempt
   await onMessage(msg(700, '/voice'));
-  assert.match(fake.sent.filter((c) => c.method === 'sendMessage').at(-1).params.text, /question 2\/8/);
+  assert.match(fake.sent.filter((c) => c.method === 'sendMessage').at(-1).params.text, /question 2 of 8/);
   // the Mini App sees the same open session with that answer
   const st = await startMock({}, ctx(700));
   assert.deepEqual(st.answered, ['p1_1_1']);
@@ -264,7 +264,7 @@ test('voice without a mock in progress points to /voice', async () => {
   await onMessage(msg(800, '/start'));
   fake.files.set('x', new Uint8Array(10));
   await onMessage(voiceMsg(800, 'x', 5));
-  assert.match(fake.sent.filter((c) => c.method === 'sendMessage').at(-1).params.text, /Send \/voice/);
+  assert.match(fake.sent.filter((c) => c.method === 'sendMessage').at(-1).params.text, /don’t have a test in progress/);
   assert.equal(calls.deepgram, 0);
 });
 
@@ -352,7 +352,7 @@ test('stars purchase: invoice, pre-checkout validation, credited exactly once, a
   await onMessage(paid(1200, inv.payload, p3.stars, 'charge-1'));
   assert.equal(attempts(1200), 1 + p3.attempts);
   assert.equal(q1("SELECT count(*) n FROM attempt_ledger WHERE user_id = 1200 AND reason = 'purchase'").n, 1);
-  assert.match(lastSent('sendMessage').params.text, /3 speaking mocks added/);
+  assert.match(lastSent('sendMessage').params.text, /3 test\(s\) added/);
 
   await onMessage(msg(ADMIN_IDS[0], '/refund charge-1'));
   assert.deepEqual(lastSent('refundStarPayment').params, { user_id: 1200, telegram_payment_charge_id: 'charge-1' });
@@ -437,7 +437,7 @@ test('drills: free single part, daily limit, scored on that part only', async ()
   assert.equal(r.parts.length, 1);
   assert.equal(r.answers.length, 1);
   assert.equal(r.score, Math.round(r.parts[0].points));
-  assert.match(fake.sent.filter((c) => c.method === 'sendMessage').at(-1).params.text, /Part 2 drill result/);
+  assert.match(fake.sent.filter((c) => c.method === 'sendMessage').at(-1).params.text, /Practice result — Part 2/);
 
   m = await me({}, ctx(1500));
   assert.equal(m.drills.left, DRILLS_PER_DAY - 1);
@@ -492,4 +492,78 @@ test('chat mode sends the examiner clip with each question', async () => {
   const audio = fake.sent.filter((c) => c.method === 'sendAudio').at(-1);
   assert.ok(audio, 'sendAudio was called');
   assert.match(audio.params.audio, /^https:\/\/app1\.tgcloud\.ai\/audio\/[0-9a-f]{12}\.mp3$/);
+});
+
+// ---- user-friendly bot: languages, menus, admin panel
+const sentTo = (id) => fake.sent.filter((c) => c.method === 'sendMessage' && c.params.chat_id === id);
+
+test('new students get the bot in their Telegram language, with a button menu', async () => {
+  fake.channelMembers = new Set([2001, 2002]);
+  await onMessage({ ...msg(2001, '/start'), from: { id: 2001, first_name: 'Dilnoza', language_code: 'uz' } });
+  let w = sentTo(2001).at(-1).params;
+  assert.match(w.text, /Salom, Dilnoza!/);
+  const buttons = w.reply_markup.inline_keyboard.flat();
+  assert.ok(buttons.some((b) => b.web_app && /Ilovani ochish/.test(b.text)), 'opens the Mini App');
+  assert.ok(buttons.some((b) => b.callback_data === 'voice_mode'));
+  assert.ok(buttons.some((b) => b.callback_data === 'menu:invite'));
+  assert.equal((await me({}, ctx(2001))).feedbackLang, 'uz');
+
+  await onMessage({ ...msg(2002, '/start'), from: { id: 2002, first_name: 'Ivan', language_code: 'ru' } });
+  assert.match(sentTo(2002).at(-1).params.text, /Привет, Ivan!/);
+
+  // switching language from the menu
+  await onCallback({ id: 'cb', from: { id: 2001 }, data: 'lang:ru' });
+  assert.equal(lastSent('answerCallbackQuery').params.text, '✅ Язык: Русский');
+  assert.equal(sentTo(2001).at(-1).params.text, 'Что хотите сделать?');
+
+  // menu buttons
+  await onCallback({ id: 'cb', from: { id: 2001 }, data: 'menu:invite' });
+  assert.match(sentTo(2001).at(-1).params.text, /Приглашайте друзей[\s\S]*start=ref_2001/);
+  await onCallback({ id: 'cb', from: { id: 2001 }, data: 'menu:top' });
+  assert.match(sentTo(2001).at(-1).params.text, /Лучшие на этой неделе|никто не прошёл/);
+
+  // random text shows the menu instead of a wall of text
+  await onMessage(msg(2002, 'hello?'));
+  assert.equal(sentTo(2002).at(-1).params.text, 'Что хотите сделать?');
+});
+
+test('chat mode speaks the student language; the exam question stays in English', async () => {
+  fake.channelMembers = new Set([2101]);
+  await onMessage({ ...msg(2101, '/voice'), from: { id: 2101, first_name: 'Aziz', language_code: 'uz' } });
+  const q = sentTo(2101).at(-1).params.text;
+  assert.match(q, /1\.1-qism · O'zingiz haqingizda savollar/);
+  assert.match(q, /Tayyorlaning \(5 soniya\)/);
+  assert.match(q, /<b>[A-Z][^<]*\?<\/b>/, 'question text in English');
+  assert.equal(lastSent('sendAudio').params.performer, 'Imtihonchi');
+});
+
+test('admin panel: buttons for stats, payments and posting; hidden from students', async () => {
+  const { ADMIN_IDS } = await import('../tgcloud/lib/config.js');
+  const admin = ADMIN_IDS[0];
+  await onMessage(msg(admin, '/admin'));
+  const panel = sentTo(admin).at(-1).params;
+  assert.match(panel.text, /Admin panel[\s\S]*❌ OpenAI key|Admin panel[\s\S]*✅ OpenAI key/);
+  const data = panel.reply_markup.inline_keyboard.flat().map((b) => b.callback_data);
+  assert.deepEqual(data, ['adm:stats', 'adm:board', 'adm:pay', 'adm:grant', 'adm:panel']);
+
+  await onCallback({ id: 'cb', from: { id: admin }, data: 'adm:pay', message: { message_id: 7, chat: { id: admin } } });
+  assert.equal(lastSent('answerCallbackQuery').params.text, 'Payments are ON');
+  assert.match(lastSent('editMessageText').params.text, /Payments: <b>ON<\/b>/);
+  await onCallback({ id: 'cb', from: { id: admin }, data: 'adm:stats' });
+  assert.match(sentTo(admin).at(-1).params.text, /Statistics[\s\S]*Students:/);
+
+  // students can't use admin buttons or commands
+  await onCallback({ id: 'cb', from: { id: 2201 }, data: 'adm:pay' });
+  assert.match(lastSent('answerCallbackQuery').params.callback_query_id, /cb/);
+  assert.equal(q1("SELECT value FROM settings WHERE key = 'payments'").value, 'on', 'unchanged by a student');
+  await onMessage(msg(2201, '/admin'));
+  assert.ok(!/Admin panel/.test(sentTo(2201).at(-1).params.text));
+});
+
+test('/setup installs the menu button and command lists in all three languages', async () => {
+  const { ADMIN_IDS } = await import('../tgcloud/lib/config.js');
+  await onMessage(msg(ADMIN_IDS[0], '/setup https://app9.tgcloud.ai'));
+  const cmds = fake.sent.filter((c) => c.method === 'setMyCommands').map((c) => c.params.language_code ?? 'default');
+  assert.deepEqual(cmds, ['default', 'uz', 'ru']);
+  assert.equal(lastSent('setChatMenuButton').params.menu_button.web_app.url, 'https://app9.tgcloud.ai/');
 });

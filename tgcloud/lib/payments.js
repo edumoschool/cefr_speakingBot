@@ -6,6 +6,7 @@ import { STAR_PACKS } from './config.js';
 import { returning } from './db.js';
 import { getSetting, KEYS, setSetting } from './settings.js';
 import { openAppKeyboard } from './users.js';
+import { tFor } from './texts.js';
 
 export async function paymentsEnabled() {
   return (await getSetting(KEYS.payments)) === 'on';
@@ -19,7 +20,7 @@ export function getPack(id) {
   return STAR_PACKS.find((p) => p.id === id);
 }
 
-const plural = (n) => `${n} speaking mock${n === 1 ? '' : 's'}`;
+const plural = (n) => `${n} speaking test${n === 1 ? '' : 's'}`;
 
 /**
  * The attempt count travels in the payload, so a later price/pack edit never
@@ -42,7 +43,7 @@ export function parsePayload(payload) {
 
 export async function sendInvoice(chatId, packId) {
   const pack = getPack(packId);
-  if (!pack || !(await paymentsEnabled())) return api.sendMessage({ chat_id: chatId, text: 'Purchases are not available right now.' });
+  if (!pack || !(await paymentsEnabled())) return api.sendMessage({ chat_id: chatId, text: (await tFor(chatId))('buyOff') });
   return api.sendInvoice({ chat_id: chatId, ...invoice(chatId, pack) });
 }
 
@@ -84,10 +85,11 @@ export async function creditPayment(message) {
   if (!inserted.length) return; // already credited
   const [u] = await returning(sql`UPDATE users SET attempts = attempts + ${p.attempts} WHERE id = ${userId} RETURNING attempts`);
   await db.run(sql`INSERT INTO attempt_ledger (user_id, delta, reason) VALUES (${userId}, ${p.attempts}, 'purchase')`);
+  const t = await tFor(userId);
   return api.sendMessage({
     chat_id: userId,
-    text: `⭐ Thank you! ${plural(p.attempts)} added — you now have ${u?.attempts ?? p.attempts} attempt(s).`,
-    reply_markup: await openAppKeyboard('🎤 Take a mock'),
+    text: t('paid', { n: p.attempts, total: u?.attempts ?? p.attempts }),
+    reply_markup: await openAppKeyboard(t('btnTakeTest')),
   });
 }
 

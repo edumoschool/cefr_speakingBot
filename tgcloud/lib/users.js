@@ -2,6 +2,7 @@ import { db, api } from 'sdk';
 import { sql } from 'sdk/db';
 import { CHANNEL_ID, FREE_ATTEMPTS, REFERRALS_PER_ATTEMPT } from './config.js';
 import { getSetting, KEYS } from './settings.js';
+import { tFor } from './texts.js';
 import { returning } from './db.js';
 
 /**
@@ -17,8 +18,9 @@ export async function upsertUser(from, referrerId) {
     if (exists) ref = referrerId;
   }
   const inserted = await returning(sql`
-    INSERT INTO users (id, username, first_name, language_code, attempts, referred_by)
-    VALUES (${from.id}, ${from.username ?? null}, ${from.first_name ?? null}, ${from.language_code ?? null}, ${FREE_ATTEMPTS}, ${ref})
+    INSERT INTO users (id, username, first_name, language_code, attempts, referred_by, feedback_lang)
+    VALUES (${from.id}, ${from.username ?? null}, ${from.first_name ?? null}, ${from.language_code ?? null}, ${FREE_ATTEMPTS}, ${ref},
+            ${langFromTelegram(from.language_code)})
     ON CONFLICT (id) DO NOTHING
     RETURNING id`);
   const created = inserted.length > 0;
@@ -31,6 +33,13 @@ export async function upsertUser(from, referrerId) {
                      language_code = ${from.language_code ?? null}, last_seen_at = unixepoch() WHERE id = ${from.id}`);
   }
   return { user: await getUser(from.id), created };
+}
+
+/** Initial app/feedback language from the Telegram interface language. */
+export function langFromTelegram(code) {
+  if (/^uz/i.test(code ?? '')) return 'uz';
+  if (/^(ru|kk|ky|tg|be|uk)/i.test(code ?? '')) return 'ru';
+  return 'en';
 }
 
 export async function getUser(id) {
@@ -84,10 +93,11 @@ export async function qualifyReferral(userId) {
   if (rewarded) {
     await db.run(sql`INSERT INTO attempt_ledger (user_id, delta, reason, ref_user_id) VALUES (${referrerId}, 1, 'referral_reward', ${userId})`);
   }
+  const t = await tFor(referrerId);
   await notify(referrerId, rewarded
-    ? `🎉 ${count} friends have joined through your link — you earned 1 more mock attempt!\nYou now have ${r.attempts} attempt(s).`
-    : `👥 A friend joined through your link (${count % per}/${per}). ${per - (count % per)} more and you get a free mock.`,
-    rewarded);
+    ? t('refReward', { count, attempts: r.attempts })
+    : t('refJoined', { p: count % per, per, left: per - (count % per) }),
+    rewarded ? t('btnTakeTest') : null);
   return { referrerId, count, rewarded };
 }
 
@@ -104,9 +114,9 @@ export async function openAppKeyboard(text = '🎤 Open Speaking Mock', path = '
   return url ? { inline_keyboard: [[{ text, web_app: { url: url + path } }]] } : undefined;
 }
 
-async function notify(chatId, text, withButton) {
+async function notify(chatId, text, buttonText) {
   try {
-    await api.sendMessage({ chat_id: chatId, text, reply_markup: withButton ? await openAppKeyboard('🎤 Take a mock') : undefined });
+    await api.sendMessage({ chat_id: chatId, text, reply_markup: buttonText ? await openAppKeyboard(buttonText) : undefined });
   } catch (e) {
     console.warn('notify failed', e.description ?? String(e)); // user may have blocked the bot
   }

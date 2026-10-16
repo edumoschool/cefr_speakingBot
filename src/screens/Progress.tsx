@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle } from '@ionic/react';
-import { CRITERIA_NAMES } from '../levels';
+import { critName, levelLabel } from '../levels';
+import { useI18n } from '../i18n';
 import type { Me } from '../types';
 
 const W = 320;
@@ -14,9 +15,21 @@ const BANDS = [
 
 /** Score trend across finished mocks (oldest → newest) and per-criterion change. */
 export function ProgressCard({ history }: { history: Me['history'] }) {
+  const { t } = useI18n();
   const points = [...history].reverse(); // API returns newest first
   const [active, setActive] = useState(points.length - 1);
-  if (!points.length) return null;
+  if (!points.length) {
+    return (
+      <IonCard>
+        <IonCardHeader>
+          <IonCardTitle>📈 {t('myProgress')}</IonCardTitle>
+        </IonCardHeader>
+        <IonCardContent>
+          <p className="hint">{t('progressEmpty')}</p>
+        </IonCardContent>
+      </IonCard>
+    );
+  }
 
   const latest = points[points.length - 1];
   const prev = points.length > 1 ? points[points.length - 2] : null;
@@ -29,10 +42,10 @@ export function ProgressCard({ history }: { history: Me['history'] }) {
   return (
     <IonCard>
       <IonCardHeader>
-        <IonCardTitle>📈 My progress</IonCardTitle>
+        <IonCardTitle>📈 {t('myProgress')}</IonCardTitle>
         <IonCardSubtitle>
-          Latest {latest.score}/75 · best {best}/75
-          {prev ? ` · ${delta(latest.score - prev.score)} since last mock` : ''}
+          {t('latestBest', { latest: `${latest.score}/75`, best: `${best}/75` })}
+          {prev ? ` · ${t('sinceLast', { d: delta(latest.score - prev.score) })}` : ''}
         </IonCardSubtitle>
       </IonCardHeader>
       <IonCardContent>
@@ -57,7 +70,7 @@ export function ProgressCard({ history }: { history: Me['history'] }) {
           </svg>
         )}
         <p className="hint" style={{ marginTop: 4 }}>
-          {new Date(sel.date * 1000).toLocaleDateString()} · {sel.title} · {sel.level}
+          {new Date(sel.date * 1000).toLocaleDateString()} · {levelLabel(t, sel.level)}
         </p>
         {latest.criteria && (
           <table className="crit-table">
@@ -66,7 +79,7 @@ export function ProgressCard({ history }: { history: Me['history'] }) {
                 const before = prev?.criteria?.[k];
                 return (
                   <tr key={k}>
-                    <td>{CRITERIA_NAMES[k] ?? k}</td>
+                    <td>{critName(t, k)}</td>
                     <td className="num">{v}/75</td>
                     <td className="num hint">{before === undefined ? '' : delta(v - before)}</td>
                   </tr>

@@ -20,6 +20,22 @@ score out of 75, a CEFR level (B1 / B2 / C1) and detailed feedback.
 - **Examiner voice in chat mode**: each question in the bot chat comes with the same recorded clip.
 - 34 complete mocks taken from your PDFs, with 102 exam pictures and model answers for the 14 Mock Book tests.
 
+## Owner's guide (no coding needed)
+
+**What students see**
+- The app opens in **O'zbekcha, Русский or English**, picked automatically from their Telegram language. They can change it in Settings. The examiner's feedback comes in the same language.
+- First visit: a 3-screen welcome, then four tabs: **Practice** (full test, or one part for free), **Progress** (score chart, past results, top speakers), **Friends** (invite link, buying tests) and **Settings** (language, how the test works, help).
+- Before a test: a microphone check (record 3 seconds and hear it back). Before each part: a short explanation of what happens and how much time there is.
+- Results: the level in plain words, the 3 most important things to improve, what went well, then details on tap.
+- In the bot chat everything is buttons: open the app, take the test with voice messages, invite friends, top speakers, language. Typing anything just shows the menu.
+
+**What you do (admin)** — send **/admin** to the bot. You get one message with buttons:
+- ✅/❌ shows which setup steps are done (OpenAI key, Deepgram key, Mini App link) and what to send for the missing ones.
+- 📊 Statistics · 🏆 Post top speakers to the channel · ⭐ Turn payments on/off · 🎁 How to give a student free tests.
+
+Setup messages (sent once): `/setkey openai …`, `/setkey deepgram …` (deleted automatically), and `/setup <Mini App link>`.
+To give someone free tests: `/grant THEIR_ID NUMBER`. Students can see their ID in the app under Settings → Need help?
+
 ## Project layout
 
 ```

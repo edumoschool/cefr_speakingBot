@@ -1,167 +1,93 @@
-// handlers/message.js — private chat with the bot.
-import { api, db } from 'sdk';
-import { sql } from 'sdk/db';
-import { ADMIN_IDS, CHANNEL_ID, CHANNEL_URL, REFERRALS_PER_ATTEMPT, SUPPORT_CONTACT } from '../lib/config.js';
+// handlers/message.js — private chat with the bot. Students mostly use buttons
+// (lib/botui.js); typed commands still work. Admin tools: /admin (lib/admin.js).
+import { api } from 'sdk';
+import { onAdminButton, isAdmin, sendAdminPanel, statsText } from '../lib/admin.js';
+import { sendBalance, sendInvite, sendLangPicker, sendMenu, sendPaySupport, sendTop, sendWelcome, setCommandMenus } from '../lib/botui.js';
+import { finishInChat, onVoice, startChatMock } from '../lib/chatmode.js';
+import { CHANNEL_ID } from '../lib/config.js';
 import { creditPayment, packsKeyboard, paymentsEnabled, refundPayment, setPaymentsEnabled } from '../lib/payments.js';
 import { KEYS, setSetting } from '../lib/settings.js';
-import { getUser, grantAttempts, openAppKeyboard, refreshMembership, upsertUser } from '../lib/users.js';
+import { tFor } from '../lib/texts.js';
+import { grantAttempts, refreshMembership, upsertUser } from '../lib/users.js';
 import { parseRefPayload } from '../lib/util.js';
-import { finishInChat, onVoice, startChatMock } from '../lib/chatmode.js';
-import { leaderboardText, myWeeklyRank, weeklyTop } from '../lib/leaderboard.js';
 
 export default async function (message) {
   if (message.chat?.type !== 'private' || !message.from || message.from.is_bot) return;
   const from = message.from;
   const [cmd, ...args] = (message.text ?? '').trim().split(/\s+/);
-  const isAdmin = ADMIN_IDS.includes(from.id);
+  const admin = isAdmin(from.id);
 
   if (cmd === '/start') {
     await upsertUser(from, parseRefPayload(args[0]));
     if (args[0] === 'voice') return startChatMock(from.id);
-    if (args[0] === 'buy' && (await paymentsEnabled())) {
-      return api.sendMessage({ chat_id: from.id, text: '⭐ Get more speaking mocks with Telegram Stars:', reply_markup: packsKeyboard() });
-    }
+    if (args[0] === 'buy') return sendShop(from.id);
     return sendWelcome(from, await refreshMembership(from.id));
   }
   await upsertUser(from);
 
-  // Stars purchase completed (see lib/payments.js).
+  // Stars purchase completed (lib/payments.js).
   if (message.successful_payment) return creditPayment(message);
-
-  // Answering a question of a chat-mode mock (see lib/chatmode.js).
+  // An answer in a chat-mode test (lib/chatmode.js).
   if (message.voice) return onVoice(message);
 
   switch (cmd) {
+    case '/menu':
+      return sendMenu(from.id);
+    case '/invite':
     case '/referral':
-    case '/invite': {
-      const u = await getUser(from.id);
-      const per = REFERRALS_PER_ATTEMPT;
-      const link = await referralLink(from.id);
-      return api.sendMessage({
-        chat_id: from.id,
-        parse_mode: 'HTML',
-        text: `👥 <b>Invite friends, get free mocks</b>\n\nYour link:\n${link}\n\n` +
-          `Friends joined: <b>${u.ref_qualified_count}</b>\nProgress to next mock: <b>${u.ref_qualified_count % per}/${per}</b>\n` +
-          `Attempts available: <b>${u.attempts}</b>`,
-        reply_markup: { inline_keyboard: [[{ text: '📤 Share link', url: shareUrl(link) }]] },
-      });
-    }
-    case '/buy':
-      if (!(await paymentsEnabled())) return api.sendMessage({ chat_id: from.id, text: 'Purchases are not available right now. Invite friends to earn free mocks: /referral' });
-      return api.sendMessage({ chat_id: from.id, text: '⭐ Get more speaking mocks with Telegram Stars:', reply_markup: packsKeyboard() });
-    case '/paysupport':
-      return api.sendMessage({
-        chat_id: from.id,
-        text: `💬 Payment support: ${SUPPORT_CONTACT}
-Please include the payment code from your receipt. Unused purchases can be refunded.`,
-      });
-    case '/payments':
-      if (!isAdmin) break;
-      if (args[0] === 'on' || args[0] === 'off') await setPaymentsEnabled(args[0] === 'on');
-      return api.sendMessage({ chat_id: from.id, text: `Payments are ${(await paymentsEnabled()) ? 'ON ⭐' : 'OFF'}. Use /payments on|off.` });
-    case '/refund':
-      if (!isAdmin) break;
-      if (!args[0]) return api.sendMessage({ chat_id: from.id, text: 'Usage: /refund <telegram_payment_charge_id>' });
-      try {
-        return api.sendMessage({ chat_id: from.id, text: await refundPayment(args[0]) });
-      } catch (e) {
-        return api.sendMessage({ chat_id: from.id, text: `Refund failed: ${e.description ?? e.message}` });
-      }
-    case '/top': {
-      const mine = await myWeeklyRank(from.id);
-      return api.sendMessage({
-        chat_id: from.id,
-        parse_mode: 'HTML',
-        text: leaderboardText(await weeklyTop(10)) + (mine ? `\n\nYou: #${mine.rank} with ${mine.score}/75` : '\n\nFinish a mock this week to get on the board.'),
-        reply_markup: await openAppKeyboard('🎤 Take a mock'),
-      });
-    }
-    case '/leaderboard': {
-      // Admin: post this week's board to the channel (the bot needs "Post messages" there).
-      if (!isAdmin) break;
-      const me = await api.getMe();
-      try {
-        await api.sendMessage({
-          chat_id: CHANNEL_ID,
-          parse_mode: 'HTML',
-          text: leaderboardText(await weeklyTop(10)) + '\n\n🎤 Practise the Multilevel speaking exam with instant AI scoring:',
-          reply_markup: { inline_keyboard: [[{ text: '🎁 Take a free mock', url: `https://t.me/${me.username}?start=board` }]] },
-        });
-        return api.sendMessage({ chat_id: from.id, text: '✅ Leaderboard posted to the channel.' });
-      } catch (e) {
-        return api.sendMessage({ chat_id: from.id, text: `Could not post: ${e.description ?? e.message}. Give the bot "Post messages" rights in the channel.` });
-      }
-    }
+      return sendInvite(from.id);
+    case '/top':
+      return sendTop(from.id);
     case '/lang':
-      return api.sendMessage({
-        chat_id: from.id,
-        text: '🌐 Feedback language / Fikr-mulohaza tili / Язык отзыва:',
-        reply_markup: { inline_keyboard: [[
-          { text: 'English', callback_data: 'lang:en' },
-          { text: "O'zbekcha", callback_data: 'lang:uz' },
-          { text: 'Русский', callback_data: 'lang:ru' },
-        ]] },
-      });
+      return sendLangPicker(from.id);
     case '/voice':
       return startChatMock(from.id);
     case '/finish':
       return finishInChat(from.id);
-    case '/balance': {
-      const u = await getUser(from.id);
-      return api.sendMessage({ chat_id: from.id, text: `You have ${u.attempts} mock attempt(s).`, reply_markup: await openAppKeyboard() });
+    case '/balance':
+      return sendBalance(from.id);
+    case '/buy':
+      return sendShop(from.id);
+    case '/paysupport':
+      return sendPaySupport(from.id);
+  }
+
+  if (admin) {
+    switch (cmd) {
+      case '/admin':
+        return sendAdminPanel(from.id);
+      case '/setkey':
+        return setKey(message, args);
+      case '/setup':
+        return setup(from.id, args[0]);
+      case '/stats':
+        return api.sendMessage({ chat_id: from.id, parse_mode: 'HTML', text: await statsText() });
+      case '/grant':
+        return grant(from.id, args);
+      case '/payments':
+        if (args[0] === 'on' || args[0] === 'off') await setPaymentsEnabled(args[0] === 'on');
+        return api.sendMessage({ chat_id: from.id, text: `Payments are ${(await paymentsEnabled()) ? 'ON ⭐' : 'OFF'}.` });
+      case '/leaderboard':
+        return onAdminButton({ id: '', from, data: 'adm:board', message: null });
+      case '/refund':
+        if (!args[0]) return api.sendMessage({ chat_id: from.id, text: 'Send: /refund PAYMENT_CODE (from the receipt)' });
+        try {
+          return api.sendMessage({ chat_id: from.id, text: await refundPayment(args[0]) });
+        } catch (e) {
+          return api.sendMessage({ chat_id: from.id, text: `Refund failed: ${e.description ?? e.message}` });
+        }
     }
-    case '/setkey':
-      if (isAdmin) return setKey(message, args);
-      break;
-    case '/setup':
-      if (isAdmin) return setup(from.id, args[0]);
-      break;
-    case '/stats':
-      if (isAdmin) return api.sendMessage({ chat_id: from.id, parse_mode: 'HTML', text: await statsText() });
-      break;
-    case '/grant':
-      if (isAdmin) return grant(from.id, args);
-      break;
   }
-  return sendWelcome(from, await refreshMembership(from.id));
+
+  // Anything else (text, stickers, unknown commands): show the menu.
+  if (!(await refreshMembership(from.id))) return sendWelcome(from, false);
+  return sendMenu(from.id);
 }
 
-async function sendWelcome(from, member) {
-  const intro =
-    `👋 Hi${from.first_name ? ' ' + from.first_name : ''}! This bot runs full <b>Multilevel (CEFR) speaking mocks</b> with real exam ` +
-    `questions and gives you an instant score out of 75, your CEFR level and detailed feedback.\n\n` +
-    `🎁 Your first mock is <b>free</b>.\n👥 Every ${REFERRALS_PER_ATTEMPT} friends who join the channel through your link = <b>+1 mock</b> (/referral).`;
-  if (member) {
-    const app = await openAppKeyboard();
-    const voice = [{ text: '🎙 Take it here with voice messages', callback_data: 'voice_mode' }];
-    return api.sendMessage({
-      chat_id: from.id,
-      parse_mode: 'HTML',
-      text: intro,
-      reply_markup: { inline_keyboard: [...(app?.inline_keyboard ?? []), voice] },
-    });
-  }
-  return api.sendMessage({
-    chat_id: from.id,
-    parse_mode: 'HTML',
-    text: `${intro}\n\n🔒 To use the bot, please join our channel first, then tap “I've joined”.`,
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: '📢 Join the channel', url: CHANNEL_URL }],
-        [{ text: "✅ I've joined", callback_data: 'check_join' }],
-      ],
-    },
-  });
-}
-
-async function referralLink(userId) {
-  const me = await api.getMe();
-  return `https://t.me/${me.username}?start=ref_${userId}`;
-}
-
-function shareUrl(link) {
-  const text = '🎤 Practise the Multilevel speaking exam with instant AI scoring — your first mock is free!';
-  return `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
+async function sendShop(userId) {
+  const t = await tFor(userId);
+  if (!(await paymentsEnabled())) return api.sendMessage({ chat_id: userId, text: t('buyOff') });
+  return api.sendMessage({ chat_id: userId, text: t('buyTitle'), reply_markup: packsKeyboard() });
 }
 
 // /setkey openai sk-...   |   /setkey deepgram <key>
@@ -172,66 +98,46 @@ async function setKey(message, [name, value]) {
     await api.deleteMessage({ chat_id, message_id: message.message_id });
   } catch {}
   if (!['openai', 'deepgram'].includes(name) || !value) {
-    return api.sendMessage({ chat_id, text: 'Usage: /setkey openai <key>  or  /setkey deepgram <key>\n(the message is deleted automatically)' });
+    return api.sendMessage({ chat_id, text: 'Send: /setkey openai YOUR_KEY  or  /setkey deepgram YOUR_KEY\n(the message is deleted automatically)' });
   }
   await setSetting(KEYS[name], value);
-  return api.sendMessage({ chat_id, text: `✅ ${name} key saved (…${value.slice(-4)}).` });
+  await api.sendMessage({ chat_id, text: `✅ ${name} key saved (…${value.slice(-4)}).` });
+  return sendAdminPanel(chat_id);
 }
 
-// /setup https://app123.tgcloud.ai/  — the Mini App URL printed by `npx tgcloud push`
+// /setup https://app123.tgcloud.ai/  — the Mini App link printed by deploy
 async function setup(chat_id, url) {
   if (!/^https:\/\/\S+$/.test(url ?? '')) {
-    return api.sendMessage({ chat_id, text: 'Usage: /setup <Mini App URL printed by "npx tgcloud push">' });
+    return api.sendMessage({ chat_id, text: 'Send: /setup YOUR_MINI_APP_LINK (printed by "npm run deploy", like https://app123.tgcloud.ai/)' });
   }
   const appUrl = url.replace(/\/+$/, '') + '/';
   await setSetting(KEYS.app_url, appUrl);
-  await api.setChatMenuButton({ menu_button: { type: 'web_app', text: '🎤 Speaking Mock', web_app: { url: appUrl } } });
-  await api.setMyCommands({
-    commands: [
-      { command: 'start', description: 'Open the speaking mock' },
-      { command: 'voice', description: 'Take the mock here in chat with voice messages' },
-      { command: 'referral', description: 'Invite friends and earn free mocks' },
-      { command: 'top', description: 'This week\'s top speakers' },
-      { command: 'lang', description: 'Feedback language: English / Oʻzbekcha / Русский' },
-      { command: 'buy', description: 'Get more mocks with Telegram Stars' },
-      { command: 'paysupport', description: 'Help with a payment' },
-      { command: 'balance', description: 'How many mocks I have left' },
-    ],
-  });
+  await api.setChatMenuButton({ menu_button: { type: 'web_app', text: '🎤 Speaking test', web_app: { url: appUrl } } });
+  await setCommandMenus();
   const me = await api.getMe();
   let adminOk = false;
   try {
     adminOk = (await api.getChatMember({ chat_id: CHANNEL_ID, user_id: me.id })).status === 'administrator';
   } catch {}
-  return api.sendMessage({
+  await api.sendMessage({
     chat_id,
-    text: `✅ Mini App URL set to ${appUrl}\nMenu button and commands updated.\n` +
-      (adminOk ? '✅ Bot is an admin of the channel.' : '⚠️ Add the bot as an ADMIN of the channel — membership checks fail otherwise.'),
+    text: `✅ Mini App link saved. The menu button and command lists (EN/UZ/RU) are updated.\n` +
+      (adminOk ? '✅ The bot is an admin of your channel.' : '⚠️ Make the bot an ADMIN of your channel — otherwise it can’t check who joined.'),
   });
+  return sendAdminPanel(chat_id);
 }
 
-// /grant <userId> <delta>
+// /grant <userId> <number>
 async function grant(chat_id, args) {
   const [uid, delta] = args.map(Number);
-  if (!uid || !Number.isInteger(delta)) return api.sendMessage({ chat_id, text: 'Usage: /grant <userId> <attempts>' });
+  if (!uid || !Number.isInteger(delta)) return api.sendMessage({ chat_id, text: 'Send: /grant USER_ID NUMBER  (e.g. /grant 123456789 2)' });
   const left = await grantAttempts(uid, delta, 'admin_grant');
-  if (left === null) return api.sendMessage({ chat_id, text: 'User not found' });
+  if (left === null) return api.sendMessage({ chat_id, text: 'No student with that ID.' });
   if (delta > 0) {
     try {
-      await api.sendMessage({ chat_id: uid, text: `🎁 You received ${delta} mock attempt(s)!`, reply_markup: await openAppKeyboard() });
+      const t = await tFor(uid);
+      await api.sendMessage({ chat_id: uid, text: t('granted', { n: delta }) });
     } catch {}
   }
-  return api.sendMessage({ chat_id, text: `Done. User ${uid} now has ${left} attempt(s).` });
-}
-
-async function statsText() {
-  const u = await db.get(sql`SELECT count(*) AS users, sum(is_member) AS members,
-      sum(referred_by IS NOT NULL) AS referred, sum(ref_qualified) AS qualified,
-      sum(created_at > unixepoch() - 86400) AS new_24h FROM users`);
-  const s = await db.get(sql`SELECT sum(status = 'done') AS done,
-      sum(status = 'done' AND finished_at > unixepoch() - 86400) AS done_24h,
-      sum(status = 'in_progress') AS open, round(avg(CASE WHEN status = 'done' THEN score END), 1) AS avg_score FROM sessions`);
-  return `📊 <b>Stats</b>\nUsers: ${u.users} (+${u.new_24h ?? 0} in 24h)\nChannel members: ${u.members ?? 0}\n` +
-    `Referred: ${u.referred ?? 0} (qualified ${u.qualified ?? 0})\n\nMocks graded: ${s.done ?? 0} (+${s.done_24h ?? 0} in 24h)\n` +
-    `In progress: ${s.open ?? 0}\nAverage score: ${s.avg_score ?? '–'}/75`;
+  return api.sendMessage({ chat_id, text: `Done. Student ${uid} now has ${left} test(s).` });
 }

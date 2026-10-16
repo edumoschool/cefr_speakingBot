@@ -14,7 +14,7 @@ ion-card .attempts-num, ion-card .score { color: var(--ion-text-color, #000); }
 .dot.on { background: var(--app-ok); }
 
 /* Exam */
-.question { font-size: 20px; font-weight: 700; margin: 6px 0 10px; color: var(--ion-text-color); }
+.question { font-size: 20px; font-weight: 700; margin: 6px 0 10px; color: var(--ion-text-color, #000); }
 .pics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
 .pics.one { grid-template-columns: 1fr; }
 .pics img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 12px; }
@@ -36,10 +36,10 @@ ion-card .attempts-num, ion-card .score { color: var(--ion-text-color, #000); }
 .timer.rec .phase { color: var(--app-bad); }
 .timer.rec .phase::before { content: '● '; animation: blink 1s infinite; }
 @keyframes blink { 50% { opacity: .2; } }
-.timer .time { position: absolute; top: 60px; width: 100%; text-align: center; font-size: 32px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ion-text-color); }
+.timer .time { position: absolute; top: 60px; width: 100%; text-align: center; font-size: 32px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ion-text-color, #000); }
 
 /* Result */
-.score { font-size: 56px; font-weight: 800; line-height: 1; color: var(--ion-text-color); }
+.score { font-size: 56px; font-weight: 800; line-height: 1; color: var(--ion-text-color, #000); }
 .score small { font-size: 20px; color: var(--app-hint); }
 .fix { border-left: 3px solid var(--app-bad); padding: 4px 10px; margin: 10px 0; font-size: 14px; }
 .fix .orig { text-decoration: line-through; color: var(--app-hint); }
@@ -51,12 +51,12 @@ ion-card .attempts-num, ion-card .score { color: var(--ion-text-color, #000); }
 .trend { width: 100%; height: auto; display: block; }
 .trend .band line { stroke: var(--app-hint); stroke-opacity: .35; stroke-dasharray: 3 4; stroke-width: 1; }
 .trend .band text, .trend-label { font-size: 11px; fill: var(--app-hint); }
-.trend-label { fill: var(--ion-text-color); font-weight: 700; }
+.trend-label { fill: var(--ion-text-color, #000); font-weight: 700; }
 .trend-line { fill: none; stroke: var(--ion-color-primary); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .trend-dot { fill: var(--ion-color-primary); stroke: var(--ion-card-background, #fff); stroke-width: 2; }
 .trend-hit { cursor: pointer; }
 .crit-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 6px; }
-.crit-table td { padding: 5px 0; border-top: 1px solid rgba(127, 127, 127, .15); color: var(--ion-text-color); }
+.crit-table td { padding: 5px 0; border-top: 1px solid rgba(127, 127, 127, .15); color: var(--ion-text-color, #000); }
 .crit-table .num { text-align: right; font-variant-numeric: tabular-nums; padding-left: 10px; white-space: nowrap; }
 .crit-table .hint { color: var(--app-hint); }
 
@@ -67,3 +67,54 @@ ion-card .attempts-num, ion-card .score { color: var(--ion-text-color, #000); }
 .drill-btn span { font-size: 12px; font-weight: 400; opacity: .8; }
 .board-rank { width: 28px; text-align: center; font-weight: 700; color: var(--app-hint); }
 .board-me { --background: rgba(var(--ion-color-primary-rgb, 37, 99, 235), .08); }
+
+/* ---- Friendlier layout ---- */
+.lead { font-size: 16px; line-height: 1.5; color: var(--ion-text-color, #000); opacity: .85; }
+.greeting h2 { margin: 14px 0 0; font-size: 24px; font-weight: 800; color: var(--ion-text-color, #000); }
+.greeting p { margin: 2px 0 0; }
+
+/* bottom tab bar */
+.tabbar { display: flex; background: var(--ion-toolbar-background, var(--ion-card-background, #fff)); border-top: 1px solid rgba(127, 127, 127, .18); padding-bottom: env(safe-area-inset-bottom); }
+.tabbar button { flex: 1; background: none; border: 0; padding: 8px 0 6px; display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--app-hint); font-size: 11px; font-weight: 600; }
+.tabbar button ion-icon { font-size: 24px; }
+.tabbar button.on { color: var(--ion-color-primary); }
+
+/* main test card */
+.hero-card ion-card-content { padding: 18px; }
+.hero-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+.hero-title { font-size: 19px; font-weight: 800; color: var(--ion-text-color, #000); }
+.tests-left { text-align: center; min-width: 76px; }
+.tests-left .hint { font-size: 11px; }
+.notice { background: rgba(217, 119, 6, .1); color: var(--ion-text-color, #000); border-radius: 10px; padding: 8px 10px; font-size: 14px; }
+.part-list h3 { font-weight: 700; }
+.part-list p { white-space: normal; }
+
+/* onboarding */
+.onboarding h1 { font-size: 26px; font-weight: 800; }
+.ob-dots { display: flex; gap: 8px; margin-top: 24px; }
+.ob-dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--app-hint); opacity: .35; }
+.ob-dots span.on { width: 22px; border-radius: 4px; background: var(--ion-color-primary); opacity: 1; }
+
+/* ready / mic check */
+.tips ion-item { --background: transparent; --padding-start: 0; }
+.mic-box { margin: 12px 0; padding: 14px; border-radius: 14px; background: var(--ion-card-background, #fff); text-align: center; }
+.meter { height: 10px; border-radius: 99px; background: rgba(127, 127, 127, .2); overflow: hidden; }
+.meter div { height: 100%; background: var(--app-ok); transition: width .1s linear; }
+.ok-line { color: var(--app-ok); font-weight: 600; display: flex; gap: 6px; align-items: center; justify-content: center; }
+.err-line { color: var(--app-bad); }
+
+/* exam */
+.part-intro .part-num { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; font-size: 30px; font-weight: 800; background: var(--ion-color-primary); color: var(--ion-color-primary-contrast, #fff); }
+.part-intro h1 { font-size: 26px; font-weight: 800; }
+.q-counter { margin: 0 0 4px; }
+
+/* result */
+.score-hero .level-badge { font-size: 20px; padding: 6px 14px; border-radius: 10px; }
+.score-hero .score { margin-top: 10px; }
+.score-hero .score small { font-size: 16px; }
+.level-text { color: var(--ion-text-color, #000); font-size: 15px; line-height: 1.5; }
+.tips-list { padding-left: 20px; margin: 0; color: var(--ion-text-color, #000); }
+.tips-list li { margin: 8px 0; line-height: 1.45; }
+.part-score { padding: 8px 0; border-bottom: 1px solid rgba(127, 127, 127, .15); }
+.answer-block { border-top: 1px solid rgba(127, 127, 127, .15); }
+.answer-block h3 { margin: 2px 0 6px; font-size: 16px; }

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { IonButton, IonContent, IonFooter, IonHeader, IonNote, IonPage, IonProgressBar, IonTitle, IonToolbar } from '@ionic/react';
+import { IonButton, IonContent, IonFooter, IonHeader, IonPage, IonProgressBar, IonTitle, IonToolbar } from '@ionic/react';
 import { beep, playClip, speak, startRecording, stopClip, stopSpeaking, uploads } from '../audio';
 import { haptic } from '../telegram';
+import { PART_INFO, PART_NAME, useI18n } from '../i18n';
 import type { Step, TestView } from '../types';
 import { prefs } from './Ready';
 
@@ -17,7 +18,8 @@ interface Props {
 export function Exam({ sessionId, test, stream, startIndex, onDone }: Props) {
   const steps = test.steps;
   const [index, setIndex] = useState(startIndex);
-  const [phase, setPhase] = useState<'listen' | 'prep' | 'rec'>('prep');
+  const [phase, setPhase] = useState<'intro' | 'listen' | 'prep' | 'rec'>('intro');
+  const { t } = useI18n();
   const [left, setLeft] = useState(steps[startIndex].prepSec);
   const [total, setTotal] = useState(steps[startIndex].prepSec);
   const [pending, setPending] = useState(0);
@@ -59,6 +61,13 @@ export function Exam({ sessionId, test, stream, startIndex, onDone }: Props) {
       for (let i = startIndex; i < steps.length && !cancelled; i++) {
         const step = steps[i];
         setIndex(i);
+        // A short explanation before each part; the student starts it when ready.
+        if (i === startIndex || steps[i - 1].part !== step.part) {
+          setPhase('intro');
+          await new Promise<void>((resolve) => (skip.current = resolve));
+          skip.current = null;
+          if (cancelled) return;
+        }
         // Like the real exam: the examiner reads the question, then preparation starts.
         if (prefs.readAloud && step.audio) {
           setPhase('listen');
@@ -101,37 +110,46 @@ export function Exam({ sessionId, test, stream, startIndex, onDone }: Props) {
   const step = steps[index];
   const secs = Math.ceil(left);
   const rec = phase === 'rec';
+  const partTitle = `${t('part', { p: step.part })} · ${t(PART_NAME[step.part])}`;
 
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle data-testid="part-label">Part {step.part}</IonTitle>
-          <IonNote slot="end" className="ion-padding-end">
-            {index + 1} / {steps.length}
-          </IonNote>
+          <IonTitle data-testid="part-label">{partTitle}</IonTitle>
         </IonToolbar>
         <IonProgressBar value={index / steps.length} />
       </IonHeader>
       <IonContent className="ion-padding">
-        <StepView step={step} />
-        <div className={`timer ${rec ? 'rec' : ''}`}>
-          <svg viewBox="0 0 120 120">
-            <circle className="bg" cx="60" cy="60" r="52" />
-            <circle className="fg" cx="60" cy="60" r="52" style={{ strokeDashoffset: 326.7 * (1 - left / total) }} />
-          </svg>
-          <div className="phase">{rec ? 'Speak now' : phase === 'listen' ? '🔊 Listen' : 'Preparation'}</div>
-          <div className="time">
-            {Math.floor(secs / 60)}:{String(secs % 60).padStart(2, '0')}
+        {phase === 'intro' ? (
+          <div className="center-page part-intro">
+            <div className="part-num">{step.part}</div>
+            <h1>{t(PART_NAME[step.part])}</h1>
+            <p className="lead">{t(PART_INFO[step.part])}</p>
           </div>
-        </div>
+        ) : (
+          <>
+            <p className="hint q-counter">{t('qOf', { n: index + 1, total: steps.length })}</p>
+            <StepView step={step} />
+            <div className={`timer ${rec ? 'rec' : ''}`}>
+              <svg viewBox="0 0 120 120">
+                <circle className="bg" cx="60" cy="60" r="52" />
+                <circle className="fg" cx="60" cy="60" r="52" style={{ strokeDashoffset: 326.7 * (1 - left / total) }} />
+              </svg>
+              <div className="phase">{rec ? t('speakNow') : phase === 'listen' ? `🔊 ${t('listen')}` : t('prepare')}</div>
+              <div className="time">
+                {Math.floor(secs / 60)}:{String(secs % 60).padStart(2, '0')}
+              </div>
+            </div>
+          </>
+        )}
       </IonContent>
-      <IonFooter className="ion-padding">
-        <IonButton expand="block" color={rec ? 'danger' : 'primary'} onClick={() => skip.current?.()} data-testid="exam-next">
-          {rec ? 'Finish answer' : phase === 'listen' ? 'Skip to preparation' : 'Start speaking now'}
+      <IonFooter className="ion-padding ion-no-border">
+        <IonButton expand="block" size="large" color={rec ? 'danger' : 'primary'} onClick={() => skip.current?.()} data-testid="exam-next">
+          {phase === 'intro' ? t('partReady') : rec ? t('finishAnswer') : phase === 'listen' ? t('skipListening') : t('startNow')}
         </IonButton>
         <p className="hint ion-text-center" style={{ minHeight: 18, margin: '6px 0 0' }}>
-          {pending > 0 ? 'Saving your answers in the background…' : ''}
+          {pending > 0 ? t('saving') : ''}
         </p>
       </IonFooter>
     </IonPage>
@@ -145,6 +163,7 @@ function spoken(step: Step) {
 }
 
 function StepView({ step }: { step: Step }) {
+  const { t: tr } = useI18n();
   const pics = step.images?.length ? (
     <div className={`pics ${step.images.length === 1 ? 'one' : ''}`}>
       {step.images.map((src) => (
@@ -170,11 +189,11 @@ function StepView({ step }: { step: Step }) {
         <h3>{t.statement}</h3>
         <div className="cols">
           <div className="col for">
-            <b>FOR</b>
+            <b>{tr('for')}</b>
             <ul>{t.for.map((x) => <li key={x}>{x}</li>)}</ul>
           </div>
           <div className="col against">
-            <b>AGAINST</b>
+            <b>{tr('against')}</b>
             <ul>{t.against.map((x) => <li key={x}>{x}</li>)}</ul>
           </div>
         </div>

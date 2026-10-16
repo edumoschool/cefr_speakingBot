@@ -3,12 +3,14 @@ import { IonContent, IonPage, IonSpinner } from '@ionic/react';
 import { api, ApiError } from '../api';
 import { uploads } from '../audio';
 import { haptic } from '../telegram';
+import { useI18n } from '../i18n';
 import type { MockResult } from '../types';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export function Grading({ sessionId, onResult, onError }: { sessionId: string; onResult: (r: MockResult) => void; onError: (e: unknown) => void }) {
-  const [text, setText] = useState('Saving your last answers…');
+  const { t } = useI18n();
+  const [text, setText] = useState(t('gradingSaving'));
   const started = useRef(false);
 
   useEffect(() => {
@@ -16,7 +18,7 @@ export function Grading({ sessionId, onResult, onError }: { sessionId: string; o
     started.current = true;
     (async () => {
       await uploads.drain();
-      setText('Our AI examiner is checking fluency, vocabulary, grammar, pronunciation and task response…');
+      setText(t('gradingText'));
       // Parts are usually graded already in the background; BUSY means one is still running.
       for (let attempt = 0; attempt < 40; attempt++) {
         try {
@@ -25,10 +27,11 @@ export function Grading({ sessionId, onResult, onError }: { sessionId: string; o
           return onResult(result);
         } catch (e) {
           if (!(e instanceof ApiError && e.code === 'BUSY')) return onError(e);
+          if (attempt === 10) setText(t('gradingSlow'));
           await sleep(3000);
         }
       }
-      onError(new Error('Assessment is taking longer than usual. Please check your result in a minute.'));
+      onError(new ApiError(t('gradingSlow'), 'BUSY'));
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -38,7 +41,7 @@ export function Grading({ sessionId, onResult, onError }: { sessionId: string; o
       <IonContent className="ion-padding">
         <div className="center-page">
           <IonSpinner name="crescent" />
-          <h2>Assessing your speaking…</h2>
+          <h2>{t('gradingTitle')}</h2>
           <p className="hint">{text}</p>
         </div>
       </IonContent>

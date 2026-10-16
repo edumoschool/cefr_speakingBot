@@ -36,10 +36,3 @@ function displayName(first) {
 function levelOf(score) {
   return score >= 65 ? 'C1' : score >= 51 ? 'B2' : score >= 38 ? 'B1' : 'Below B1';
 }
-
-export function leaderboardText(top) {
-  const medal = (i) => ['🥇', '🥈', '🥉'][i] ?? `${i + 1}.`;
-  if (!top.length) return '🏆 No mocks finished this week yet — be the first!';
-  return `🏆 <b>Top speakers this week</b>\n\n` +
-    top.map((t, i) => `${medal(i)} ${t.name} — <b>${t.score}/75</b> (${t.level})`).join('\n');
-}

@@ -1,19 +1,22 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { IonApp, useIonAlert } from '@ionic/react';
 import { api, ApiError } from './api';
+import { detectLang, errorText, I18n, makeT, type Lang } from './i18n';
 import { tg } from './telegram';
 import type { Me, MockResult, PartId, StartResponse } from './types';
 import { Exam } from './screens/Exam';
 import { Gate } from './screens/Gate';
 import { Grading } from './screens/Grading';
-import { Home } from './screens/Home';
+import { Message } from './screens/Message';
+import { Onboarding, onboardingSeen } from './screens/Onboarding';
 import { Ready } from './screens/Ready';
 import { Result } from './screens/Result';
-import { Message } from './screens/Message';
+import { Tabs, type TabId } from './screens/Tabs';
 
 type Screen =
   | { name: 'loading' }
   | { name: 'error'; message: string }
+  | { name: 'onboarding' }
   | { name: 'gate' }
   | { name: 'home' }
   | { name: 'ready'; drill?: PartId }
@@ -23,16 +26,30 @@ type Screen =
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'loading' });
+  const [tab, setTab] = useState<TabId>('practice');
   const [me, setMe] = useState<Me | null>(null);
+  const [lang, setLangState] = useState<Lang>(detectLang());
+  const t = useMemo(() => makeT(lang), [lang]);
   const [alert] = useIonAlert();
 
-  const showError = useCallback((e: unknown) => alert({ header: 'Oops', message: e instanceof Error ? e.message : String(e), buttons: ['OK'] }), [alert]);
+  const showError = useCallback(
+    (e: unknown) => alert({ header: t('errTitle'), message: errorText(t, e), buttons: [t('ok')] }),
+    [alert, t],
+  );
+
+  // Language is one setting for the app and the examiner's feedback; it's saved on the server.
+  const setLang = useCallback((l: Lang) => {
+    setLangState(l);
+    api.setPrefs(l).catch(() => undefined);
+  }, []);
 
   const loadHome = useCallback(async () => {
     setScreen({ name: 'loading' });
     try {
       const data = await api.me();
       setMe(data);
+      setLangState(data.feedbackLang);
+      if (!onboardingSeen()) return setScreen({ name: 'onboarding' });
       if (!data.isMember) return setScreen({ name: 'gate' });
       const m = /result=([0-9a-f]{32})/.exec(location.hash);
       if (m) {
@@ -42,7 +59,7 @@ export default function App() {
       }
       setScreen({ name: 'home' });
     } catch (e) {
-      setScreen({ name: 'error', message: e instanceof Error ? e.message : String(e) });
+      setScreen({ name: 'error', message: errorText(makeT(detectLang()), e) });
     }
   }, []);
 
@@ -50,7 +67,7 @@ export default function App() {
     loadHome();
   }, [loadHome]);
 
-  // Telegram's native back button on secondary screens.
+  // Telegram's own back button on secondary screens.
   useEffect(() => {
     if (!tg) return;
     const back = ['result', 'ready'].includes(screen.name);
@@ -63,26 +80,29 @@ export default function App() {
   }, [screen.name]);
 
   const refreshMe = () =>
-    api.me().then((m) => {
-      setMe(m);
-      return m;
-    }).catch(() => undefined);
+    api
+      .me()
+      .then((m) => {
+        setMe(m);
+        return m;
+      })
+      .catch(() => undefined);
 
   const begin = async (stream: MediaStream, drill?: PartId) => {
     setScreen({ name: 'loading' });
     try {
-      // Resuming an open session works through either endpoint.
+      // An open test or practice is resumed by either call.
       const start = drill && !me?.active ? await api.startDrill(drill) : await api.startMock();
       const answered = new Set(start.answered);
       const startIndex = start.test.steps.findIndex((s) => !answered.has(s.key));
       if (startIndex === -1 || start.expired) {
-        stream.getTracks().forEach((t) => t.stop());
+        stream.getTracks().forEach((tr) => tr.stop());
         return setScreen({ name: 'grading', sessionId: start.session.id });
       }
       tg?.enableClosingConfirmation?.();
       setScreen({ name: 'exam', start, stream, startIndex });
     } catch (e) {
-      stream.getTracks().forEach((t) => t.stop());
+      stream.getTracks().forEach((tr) => tr.stop());
       if (e instanceof ApiError && e.code === 'NOT_MEMBER') return setScreen({ name: 'gate' });
       showError(e);
       loadHome();
@@ -104,16 +124,35 @@ export default function App() {
     }
   };
 
+  const goHome = (to: TabId = tab) => {
+    setTab(to);
+    setScreen({ name: 'home' });
+  };
+
   const content = (() => {
     switch (screen.name) {
       case 'loading':
-        return <Message spinner text="Loading…" />;
+        return <Message spinner text={t('loading')} />;
       case 'error':
-        return <Message emoji="⚠️" text={screen.message} action="Try again" onAction={loadHome} />;
+        return <Message emoji="⚠️" text={screen.message} action={t('tryAgain')} onAction={loadHome} />;
+      case 'onboarding':
+        return <Onboarding referralsPer={me?.referral.per ?? 3} onDone={() => (me && !me.isMember ? setScreen({ name: 'gate' }) : goHome('practice'))} />;
       case 'gate':
         return <Gate channelUrl={me?.channelUrl ?? ''} onCheck={loadHome} />;
       case 'home':
-        return me && <Home me={me} onStart={onStart} onOpenResult={openResult} onRefresh={refreshMe} />;
+        return (
+          me && (
+            <Tabs
+              me={me}
+              tab={tab}
+              onTab={setTab}
+              onStart={onStart}
+              onOpenResult={openResult}
+              onRefresh={refreshMe}
+              onShowIntro={() => setScreen({ name: 'onboarding' })}
+            />
+          )
+        );
       case 'ready':
         return (
           <Ready
@@ -121,7 +160,7 @@ export default function App() {
             drill={screen.drill}
             botUsername={me?.botUsername ?? ''}
             onBegin={(stream) => begin(stream, screen.drill)}
-            onBack={() => setScreen({ name: 'home' })}
+            onBack={() => goHome()}
           />
         );
       case 'exam':
@@ -151,9 +190,13 @@ export default function App() {
           />
         );
       case 'result':
-        return <Result result={screen.result} shareLink={me?.referral.link} onHome={() => setScreen({ name: 'home' })} />;
+        return <Result result={screen.result} shareLink={me?.referral.link} onHome={() => goHome()} />;
     }
   })();
 
-  return <IonApp>{content}</IonApp>;
+  return (
+    <I18n.Provider value={{ lang, t, setLang }}>
+      <IonApp>{content}</IonApp>
+    </I18n.Provider>
+  );
 }

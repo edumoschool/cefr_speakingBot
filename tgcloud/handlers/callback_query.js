@@ -1,46 +1,64 @@
-// handlers/callback_query.js — the "I've joined" button under the welcome message.
+// handlers/callback_query.js — button taps under bot messages.
 import { api } from 'sdk';
-import { REFERRALS_PER_ATTEMPT } from '../lib/config.js';
-import { openAppKeyboard, refreshMembership, setFeedbackLang, upsertUser } from '../lib/users.js';
-import { LANGS } from '../lib/grading.js';
+import { isAdmin, onAdminButton } from '../lib/admin.js';
+import { sendInvite, sendLangPicker, sendMenu, sendTop } from '../lib/botui.js';
 import { startChatMock } from '../lib/chatmode.js';
+import { LANGS } from '../lib/grading.js';
 import { sendInvoice } from '../lib/payments.js';
+import { tFor } from '../lib/texts.js';
+import { refreshMembership, setFeedbackLang, upsertUser } from '../lib/users.js';
 
 export default async function (query) {
-  if (query.data?.startsWith('lang:')) {
-    const lang = query.data.slice(5);
-    if (!Object.hasOwn(LANGS, lang)) return api.answerCallbackQuery({ callback_query_id: query.id });
-    await upsertUser(query.from);
-    await setFeedbackLang(query.from.id, lang);
-    return api.answerCallbackQuery({ callback_query_id: query.id, text: `✅ ${LANGS[lang].name}` });
+  const data = query.data ?? '';
+  const userId = query.from.id;
+  const done = (text, show_alert = false) => api.answerCallbackQuery({ callback_query_id: query.id, text, show_alert });
+
+  if (data.startsWith('adm:')) {
+    if (!isAdmin(userId)) return done();
+    return onAdminButton(query);
   }
-  if (query.data?.startsWith('buy:')) {
-    await api.answerCallbackQuery({ callback_query_id: query.id });
-    return sendInvoice(query.from.id, query.data.slice(4));
-  }
-  if (query.data === 'voice_mode') {
-    await api.answerCallbackQuery({ callback_query_id: query.id });
-    await upsertUser(query.from);
-    return startChatMock(query.from.id);
-  }
-  if (query.data !== 'check_join') return api.answerCallbackQuery({ callback_query_id: query.id });
+
   await upsertUser(query.from);
-  if (!(await refreshMembership(query.from.id))) {
-    return api.answerCallbackQuery({
-      callback_query_id: query.id,
-      text: "We couldn't see you in the channel yet. Join it and tap again.",
-      show_alert: true,
-    });
+
+  if (data.startsWith('lang:')) {
+    const lang = data.slice(5);
+    if (!Object.hasOwn(LANGS, lang)) return done();
+    await setFeedbackLang(userId, lang);
+    const t = await tFor(userId);
+    await done(t('langSaved'));
+    return sendMenu(userId);
   }
-  await api.answerCallbackQuery({ callback_query_id: query.id, text: 'Thanks for joining! 🎉' });
-  if (query.message) {
-    try {
-      await api.deleteMessage({ chat_id: query.message.chat.id, message_id: query.message.message_id });
-    } catch {}
+  if (data.startsWith('buy:')) {
+    await done();
+    return sendInvoice(userId, data.slice(4));
   }
-  return api.sendMessage({
-    chat_id: query.from.id,
-    text: `✅ You're in! Your first mock is free, and every ${REFERRALS_PER_ATTEMPT} friends who join through your link (/referral) give you another one.`,
-    reply_markup: await openAppKeyboard(),
-  });
+  if (data === 'voice_mode') {
+    await done();
+    return startChatMock(userId);
+  }
+  if (data === 'menu:invite') {
+    await done();
+    return sendInvite(userId);
+  }
+  if (data === 'menu:top') {
+    await done();
+    return sendTop(userId);
+  }
+  if (data === 'menu:lang') {
+    await done();
+    return sendLangPicker(userId);
+  }
+  if (data === 'check_join') {
+    const t = await tFor(userId);
+    if (!(await refreshMembership(userId))) return done(t('notInChannel'), true);
+    await done('🎉');
+    if (query.message) {
+      try {
+        await api.deleteMessage({ chat_id: query.message.chat.id, message_id: query.message.message_id });
+      } catch {}
+    }
+    await api.sendMessage({ chat_id: userId, text: t('joinedThanks') });
+    return sendMenu(userId);
+  }
+  return done();
 }

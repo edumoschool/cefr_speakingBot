@@ -6,8 +6,8 @@ export interface Me {
   /** Stars packs for sale, or null while payments are off. */
   shop: { id: string; attempts: number; stars: number }[] | null;
   referral: { link: string; qualified: number; per: number; progress: number };
-  active: { id: string; kind: 'mock' | 'drill'; drillPart: PartId | null; status: 'in_progress' | 'grading'; testTitle?: string; answered: string[] } | null;
-  history: { id: string; kind: 'mock' | 'drill'; title: string; score: number; level: string; date: number; criteria: Record<string, number> | null }[];
+  active: { id: string; kind: 'mock' | 'drill'; drillPart: PartId | null; status: 'in_progress' | 'grading'; testTitle?: string; total: number; answered: string[] } | null;
+  history: { id: string; kind: 'mock' | 'drill'; drillPart: PartId | null; title: string; score: number; level: string; date: number; criteria: Record<string, number> | null }[];
   feedbackLang: 'en' | 'uz' | 'ru';
   drills: { perDay: number; left: number };
   leaderboard: {

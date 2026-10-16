@@ -5,7 +5,7 @@ import { sql } from 'sdk/db';
 import { CHANNEL_URL, DRILLS_PER_DAY, REFERRALS_PER_ATTEMPT, STAR_PACKS } from '../lib/config.js';
 import { myWeeklyRank, weeklyTop } from '../lib/leaderboard.js';
 import { paymentsEnabled } from '../lib/payments.js';
-import { getTest } from '../lib/exam.js';
+import { getTest, sessionSteps } from '../lib/exam.js';
 import { activeSession, answeredKeys, drillsLeftToday, isExpired, settleExpired } from '../lib/sessions.js';
 import { parseRefPayload } from '../lib/util.js';
 import { getUser, refreshMembership, upsertUser } from '../lib/users.js';
@@ -40,10 +40,10 @@ export default async function (input, ctx) {
       progress: user.ref_qualified_count % per,
     },
     active: active
-      ? { id: active.id, kind: active.kind, drillPart: active.drill_part, status: isExpired(active) ? 'grading' : active.status, testTitle: getTest(active.test_id)?.title, answered: await answeredKeys(active.id) }
+      ? { id: active.id, kind: active.kind, drillPart: active.drill_part, status: isExpired(active) ? 'grading' : active.status, testTitle: getTest(active.test_id)?.title, total: sessionSteps(active).length, answered: await answeredKeys(active.id) }
       : null,
     history: history.map((h) => ({
-      id: h.id, kind: h.kind, title: (h.kind === 'drill' ? `Part ${h.drill_part} drill · ` : '') + (getTest(h.test_id)?.title ?? h.test_id),
+      id: h.id, kind: h.kind, drillPart: h.drill_part, title: (h.kind === 'drill' ? `Part ${h.drill_part} drill · ` : '') + (getTest(h.test_id)?.title ?? h.test_id),
       score: h.score, level: h.level, date: h.created_at,
       criteria: h.criteria ? JSON.parse(h.criteria) : null,
     })),
