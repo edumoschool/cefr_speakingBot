@@ -1,0 +1,20 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mini-app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:api"
+      ],
+      "env": {
+        "FAKE_DEEPGRAM": "1",
+        "PAYMENTS": "on",
+        "FAKE_OPENAI": "1",
+        "OPENAI_API_KEY": "fake"
+      },
+      "port": 8787
+    }
+  ]
+}

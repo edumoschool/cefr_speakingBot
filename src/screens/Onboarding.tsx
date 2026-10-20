@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { IonButton, IonContent, IonFooter, IonPage, IonSegment, IonSegmentButton, IonLabel } from '@ionic/react';
+import { IonButton, IonContent, IonFooter, IonIcon, IonLabel, IonPage, IonSegment, IonSegmentButton } from '@ionic/react';
+import { giftOutline, micOutline, speedometerOutline } from 'ionicons/icons';
 import { LANG_NAMES, useI18n, type Lang } from '../i18n';
 
 const KEY = 'onboarded.v1';
@@ -23,9 +24,9 @@ export function Onboarding({ referralsPer, onDone }: { referralsPer: number; onD
   const { t, lang, setLang } = useI18n();
   const [i, setI] = useState(0);
   const slides = [
-    { emoji: '🎙️', title: t('ob1Title'), text: t('ob1Text') },
-    { emoji: '⚡', title: t('ob2Title'), text: t('ob2Text') },
-    { emoji: '🎁', title: t('ob3Title'), text: t('ob3Text', { n: referralsPer }) },
+    { icon: micOutline, title: t('ob1Title'), text: t('ob1Text') },
+    { icon: speedometerOutline, title: t('ob2Title'), text: t('ob2Text') },
+    { icon: giftOutline, title: t('ob3Title'), text: t('ob3Text', { n: referralsPer }) },
   ];
   const s = slides[i];
   const last = i === slides.length - 1;
@@ -34,11 +35,11 @@ export function Onboarding({ referralsPer, onDone }: { referralsPer: number; onD
     <IonPage>
       <IonContent className="ion-padding">
         <div className="center-page onboarding">
-          <div className="big-emoji">{s.emoji}</div>
+          <IonIcon icon={s.icon} className="glyph" aria-hidden="true" />
           <h1>{s.title}</h1>
           <p className="lead">{s.text}</p>
           {i === 0 && (
-            <div style={{ width: '100%', marginTop: 12 }}>
+            <div className="ob-lang">
               <p className="hint">{t('obChooseLang')}</p>
               <IonSegment value={lang} onIonChange={(e) => setLang(e.detail.value as Lang)} data-testid="ob-lang">
                 {(Object.keys(LANG_NAMES) as Lang[]).map((l) => (

@@ -1,4 +1,5 @@
 import { createRoot } from 'react-dom/client';
+import '@fontsource-variable/onest';
 import { setupIonicReact } from '@ionic/react';
 
 import '@ionic/react/css/core.css';

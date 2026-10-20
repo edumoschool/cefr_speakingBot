@@ -43,7 +43,7 @@ export function openTelegramLink(url: string) {
   else window.open(url, '_blank');
 }
 
-/** Maps Telegram's theme onto Ionic's CSS variables and dark palette. */
+/** Maps Telegram's surfaces and text onto Ionic's CSS variables and dark palette. */
 export function applyTheme() {
   const root = document.documentElement;
   const p = tg?.themeParams ?? {};
@@ -56,16 +56,5 @@ export function applyTheme() {
   set('--ion-item-background', p.bg_color);
   set('--ion-toolbar-background', p.header_bg_color ?? p.bg_color);
   set('--app-hint', p.hint_color);
-  if (p.button_color) {
-    set('--ion-color-primary', p.button_color);
-    set('--ion-color-primary-shade', p.button_color);
-    set('--ion-color-primary-tint', p.button_color);
-    set('--ion-color-primary-rgb', hexToRgb(p.button_color));
-  }
-  set('--ion-color-primary-contrast', p.button_text_color);
-}
-
-function hexToRgb(hex: string) {
-  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
-  return m ? `${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}` : undefined;
+  // The accent stays the app's own soft blue (theme.css), not Telegram's button colour.
 }

@@ -231,7 +231,7 @@ function QuestionCard({ step, n, source }: { step: Step & { sample: string | nul
           </p>
         )}
         <div className="lib-meta">
-          <span className="hint">⏱ {t('timing', { prep: dur(t, step.prepSec), speak: dur(t, step.speakSec) })}</span>
+          <span className="hint">{t('timing', { prep: dur(t, step.prepSec), speak: dur(t, step.speakSec) })}</span>
           {step.audio && (
             <IonButton size="small" fill="clear" onClick={listen}>
               <IonIcon slot="start" icon={playing ? stopCircleOutline : volumeHighOutline} />

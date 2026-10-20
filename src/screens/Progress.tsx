@@ -1,33 +1,28 @@
 import { useState } from 'react';
-import { IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle } from '@ionic/react';
-import { critName, levelLabel } from '../levels';
+import { bandOf, critName } from '../levels';
 import { useI18n } from '../i18n';
 import type { Me } from '../types';
+import { BandScale, LevelBadge, Section } from '../ui';
 
 const W = 320;
 const H = 150;
-const PAD = { l: 28, r: 16, t: 12, b: 20 };
+const PAD = { l: 28, r: 16, t: 14, b: 20 };
 const BANDS = [
   { at: 38, label: 'B1' },
   { at: 51, label: 'B2' },
   { at: 65, label: 'C1' },
 ];
 
-/** Score trend across finished mocks (oldest → newest) and per-criterion change. */
+/** Score trend across finished mocks (oldest → newest) and per-skill change. */
 export function ProgressCard({ history }: { history: Me['history'] }) {
   const { t } = useI18n();
   const points = [...history].reverse(); // API returns newest first
   const [active, setActive] = useState(points.length - 1);
   if (!points.length) {
     return (
-      <IonCard>
-        <IonCardHeader>
-          <IonCardTitle>📈 {t('myProgress')}</IonCardTitle>
-        </IonCardHeader>
-        <IonCardContent>
-          <p className="hint">{t('progressEmpty')}</p>
-        </IonCardContent>
-      </IonCard>
+      <Section title={t('myProgress')}>
+        <p className="pad hint" style={{ margin: 0 }}>{t('progressEmpty')}</p>
+      </Section>
     );
   }
 
@@ -40,61 +35,82 @@ export function ProgressCard({ history }: { history: Me['history'] }) {
   const sel = points[Math.min(active, points.length - 1)];
 
   return (
-    <IonCard>
-      <IonCardHeader>
-        <IonCardTitle>📈 {t('myProgress')}</IonCardTitle>
-        <IonCardSubtitle>
-          {t('latestBest', { latest: `${latest.score}/75`, best: `${best}/75` })}
-          {prev ? ` · ${t('sinceLast', { d: delta(latest.score - prev.score) })}` : ''}
-        </IonCardSubtitle>
-      </IonCardHeader>
-      <IonCardContent>
-        {points.length > 1 && (
-          <svg viewBox={`0 0 ${W} ${H}`} className="trend" role="img" aria-label={`Scores: ${points.map((p) => p.score).join(', ')} out of 75`}>
-            {BANDS.map((b) => (
-              <g key={b.label} className="band">
-                <line x1={PAD.l} x2={W - PAD.r} y1={y(b.at)} y2={y(b.at)} />
-                <text x={PAD.l - 6} y={y(b.at) + 4} textAnchor="end">{b.label}</text>
-              </g>
-            ))}
-            <path d={line} className="trend-line" />
-            {points.map((p, i) => (
-              <g key={p.id} onClick={() => setActive(i)} className="trend-hit">
-                <circle cx={x(i)} cy={y(p.score)} r={14} fill="transparent" />
-                <circle cx={x(i)} cy={y(p.score)} r={i === active ? 5 : 4} className={`trend-dot ${i === active ? 'on' : ''}`} />
-              </g>
-            ))}
-            <text x={x(active)} y={Math.max(10, y(sel.score) - 10)} textAnchor="middle" className="trend-label">
-              {sel.score}
-            </text>
-          </svg>
-        )}
-        <p className="hint" style={{ marginTop: 4 }}>
-          {new Date(sel.date * 1000).toLocaleDateString()} · {levelLabel(t, sel.level)}
-        </p>
-        {latest.criteria && (
-          <table className="crit-table">
-            <tbody>
-              {Object.entries(latest.criteria).map(([k, v]) => {
-                const before = prev?.criteria?.[k];
-                return (
-                  <tr key={k}>
-                    <td>{critName(t, k)}</td>
-                    <td className="num">{v}/75</td>
-                    <td className="num hint">{before === undefined ? '' : delta(v - before)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </IonCardContent>
-    </IonCard>
+    <>
+      <Section title={t('myProgress')}>
+        <div className="pad">
+          <div className="stat-row">
+            <div>
+              <b>{latest.score}</b>
+              <span>{t('statLatest')}</span>
+            </div>
+            <div>
+              <b>{best}</b>
+              <span>{t('statBest')}</span>
+            </div>
+            {prev && (
+              <div>
+                <b><Delta d={latest.score - prev.score} /></b>
+                <span>{t('statChange')}</span>
+              </div>
+            )}
+          </div>
+          {points.length > 1 ? (
+            <>
+              <svg viewBox={`0 0 ${W} ${H}`} className="trend" role="img" aria-label={`Scores: ${points.map((p) => p.score).join(', ')} out of 75`}>
+                {BANDS.map((b) => (
+                  <g key={b.label} className="band">
+                    <line x1={PAD.l} x2={W - PAD.r} y1={y(b.at)} y2={y(b.at)} />
+                    <text x={PAD.l - 6} y={y(b.at) + 4} textAnchor="end">{b.label}</text>
+                  </g>
+                ))}
+                <path d={line} className="trend-line" />
+                {points.map((p, i) => (
+                  <g key={p.id} onClick={() => setActive(i)} className="trend-hit">
+                    <circle cx={x(i)} cy={y(p.score)} r={14} fill="transparent" />
+                    <circle cx={x(i)} cy={y(p.score)} r={i === active ? 5.5 : 4} className="trend-dot" />
+                  </g>
+                ))}
+                <text x={x(active)} y={Math.max(10, y(sel.score) - 10)} textAnchor="middle" className="trend-label">
+                  {sel.score}
+                </text>
+              </svg>
+              <p className="hint row-between" style={{ margin: 0 }}>
+                <span>{new Date(sel.date * 1000).toLocaleDateString()}</span>
+                <LevelBadge level={sel.level} />
+              </p>
+            </>
+          ) : (
+            <BandScale score={latest.score} />
+          )}
+        </div>
+      </Section>
+
+      {latest.criteria && (
+        <Section title={t('skillScores')}>
+          <div className="pad" style={{ paddingTop: 6, paddingBottom: 6 }}>
+            {Object.entries(latest.criteria).map(([k, v]) => {
+              const before = prev?.criteria?.[k];
+              return (
+                <div key={k} className="skill">
+                  <div className="row-between">
+                    <span>{critName(t, k)}</span>
+                    <span>
+                      {before !== undefined && <Delta d={v - before} />}
+                      <LevelBadge level={bandOf(v)} />
+                    </span>
+                  </div>
+                  <BandScale score={v} compact />
+                </div>
+              );
+            })}
+          </div>
+        </Section>
+      )}
+    </>
   );
 }
 
-function delta(d: number) {
-  if (d > 0) return `▲ ${d}`;
-  if (d < 0) return `▼ ${-d}`;
-  return '±0';
+function Delta({ d }: { d: number }) {
+  const cls = d > 0 ? 'up' : d < 0 ? 'down' : 'same';
+  return <span className={`delta ${cls}`}>{d > 0 ? `+${d}` : d < 0 ? `−${-d}` : '±0'}</span>;
 }

@@ -4,11 +4,20 @@ export const CRITERIA = ['fluency_coherence', 'lexical_resource', 'grammar', 'pr
 
 export const critName = (t: T, key: string) => t(`c_${key}` as TKey);
 
-export function levelColor(level: string): string {
-  if (level.startsWith('C1')) return 'success';
-  if (level.startsWith('B2')) return 'primary';
-  if (level.startsWith('B1')) return 'warning';
-  return 'danger';
+/** Colour family of a level ('B2+' → 'b2'); matches the .lvl-* classes in theme.css. */
+export function levelKey(level: string): 'below' | 'b1' | 'b2' | 'c1' {
+  if (level.startsWith('C1')) return 'c1';
+  if (level.startsWith('B2')) return 'b2';
+  if (level.startsWith('B1')) return 'b1';
+  return 'below';
+}
+
+/** CEFR band of a 0–75 score (same thresholds as the server's cefrFromScore). */
+export function bandOf(score: number): string {
+  if (score >= 65) return 'C1';
+  if (score >= 51) return 'B2';
+  if (score >= 38) return 'B1';
+  return 'Below B1';
 }
 
 /** Plain-language meaning of a level, and how far the next one is. */

@@ -1,18 +1,17 @@
 import { useState } from 'react';
 import {
-  IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonFooter,
-  IonHeader, IonIcon, IonItem, IonLabel, IonList, IonNote, IonPage, IonSegment, IonSegmentButton, IonTitle, IonToolbar,
-  useIonToast,
+  IonButton, IonContent, IonFooter, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonPage, IonSegment, IonSegmentButton,
+  IonTitle, IonToolbar, useIonToast,
 } from '@ionic/react';
 import {
   bookOutline, chatbubbleEllipsesOutline, copyOutline, helpCircleOutline, micOutline, peopleOutline, playOutline,
-  settingsOutline, shareSocialOutline, starOutline, trendingUpOutline,
+  settingsOutline, shareSocialOutline, star, trendingUpOutline,
 } from 'ionicons/icons';
 import { api } from '../api';
-import { errorText, LANG_NAMES, PART_INFO, PART_NAME, useI18n, type Lang } from '../i18n';
-import { levelColor, levelLabel } from '../levels';
+import { errorText, LANG_NAMES, PART_INFO, PART_NAME, useI18n, type Lang, type T } from '../i18n';
 import { haptic, openTelegramLink, tg } from '../telegram';
 import type { Me, PartId } from '../types';
+import { BandScale, LevelBadge, Section } from '../ui';
 import { ProgressCard } from './Progress';
 
 export type TabId = 'practice' | 'progress' | 'friends' | 'settings';
@@ -57,8 +56,8 @@ export function Tabs(props: Props) {
       </IonContent>
       <IonFooter className="tabbar">
         {tabs.map((x) => (
-          <button key={x.id} className={x.id === tab ? 'on' : ''} onClick={() => onTab(x.id)} data-testid={`tab-${x.id}`}>
-            <IonIcon icon={x.icon} />
+          <button key={x.id} className={x.id === tab ? 'on' : ''} onClick={() => onTab(x.id)} data-testid={`tab-${x.id}`} aria-current={x.id === tab ? 'page' : undefined}>
+            <IonIcon icon={x.icon} aria-hidden="true" />
             <span>{x.label}</span>
           </button>
         ))}
@@ -67,102 +66,114 @@ export function Tabs(props: Props) {
   );
 }
 
+/** Part tag + name + what happens: the same row on Practice and Settings. */
+function PartRow({ p, onClick, disabled }: { p: PartId; onClick?: () => void; disabled?: boolean }) {
+  const { t } = useI18n();
+  return (
+    <IonItem button={!!onClick} detail={!!onClick} disabled={disabled} onClick={onClick} data-testid={onClick ? `drill-${p}` : undefined}>
+      <span slot="start" className="part-tag">{p}</span>
+      <IonLabel className="ion-text-wrap">
+        <h3>{t(PART_NAME[p])}</h3>
+        <p>{t(PART_INFO[p])}</p>
+      </IonLabel>
+    </IonItem>
+  );
+}
+
 // ---------------------------------------------------------------- Practice
 function PracticeTab({ me, onStart, onTab, onOpenLibrary }: Props) {
   const { t } = useI18n();
   const a = me.active;
   const canStart = !!a || me.user.attempts > 0;
+  const last = me.history.find((h) => h.kind !== 'drill');
+  const drillsBlocked = !!a || me.drills.left < 1;
 
   return (
     <>
-      <div className="ion-padding-horizontal greeting">
-        <h2>{t('hello', { name: me.user.firstName || '👋' })}</h2>
+      <div className="greeting">
+        <h1>{t('hello', { name: me.user.firstName || '👋' })}</h1>
         <p className="hint">{t('helloSub')}</p>
       </div>
 
-      <IonCard className="hero-card">
-        <IonCardContent>
-          <div className="hero-top">
+      <Section>
+        <div className="hero">
+          <div className="row-between">
             <div>
-              <div className="hero-title">🎤 {t('fullTest')}</div>
-              <div className="hint">{t('fullTestSub')}</div>
+              <h2 className="hero-title">{t('fullTest')}</h2>
+              <p className="hint">{t('fullTestSub')}</p>
             </div>
             <div className="tests-left">
-              <div className="attempts-num" data-testid="attempts">{me.user.attempts}</div>
-              <div className="hint">{t('testsLeft')}</div>
+              <b data-testid="attempts">{me.user.attempts}</b>
+              <span>{t('testsLeft')}</span>
             </div>
           </div>
+          {last && !a && (
+            <div className="last-score">
+              <div className="row-between">
+                <span>{t('lastTest')}</span>
+                <span>
+                  <b>{last.score}</b>/75 <LevelBadge level={last.level} />
+                </span>
+              </div>
+              <BandScale score={last.score} />
+            </div>
+          )}
           {a && (
             <p className="notice">
               {t('unfinished', { what: t(a.kind === 'drill' ? 'unfinishedPart' : 'unfinishedTest'), done: a.answered.length, total: a.total })}
             </p>
           )}
-          <IonButton expand="block" size="large" disabled={!canStart} onClick={() => onStart()} data-testid="start">
-            <IonIcon slot="start" icon={playOutline} />
-            {a ? (a.status === 'grading' ? t('seeResult') : t('continueTest')) : t('startTest')}
-          </IonButton>
-          {!canStart && (
+          {canStart ? (
+            <IonButton expand="block" size="large" onClick={() => onStart()} data-testid="start">
+              <IonIcon slot="start" icon={playOutline} />
+              {a ? (a.status === 'grading' ? t('seeResult') : t('continueTest')) : t('startTest')}
+            </IonButton>
+          ) : (
             <>
-              <p className="hint ion-text-center">{t('noTestsLeft')}</p>
-              <IonButton expand="block" fill="outline" onClick={() => onTab('friends')}>
+              <p className="notice">{t('noTestsLeft')}</p>
+              <IonButton expand="block" size="large" onClick={() => onTab('friends')} data-testid="invite-for-test">
                 <IonIcon slot="start" icon={peopleOutline} /> {t('inviteForTest')}
               </IonButton>
             </>
           )}
-        </IonCardContent>
-      </IonCard>
+        </div>
+      </Section>
 
-      <IonCard>
-        <IonCardHeader>
-          <IonCardTitle>🎯 {t('practiseOne')}</IonCardTitle>
-          <IonCardSubtitle>{t('practiseOneSub', { left: me.drills.left, per: me.drills.perDay })}</IonCardSubtitle>
-        </IonCardHeader>
-        <IonList lines="full" className="part-list">
+      <Section
+        title={t('practiseOne')}
+        note={drillsBlocked ? (a ? t('finishOpenFirst') : t('practiseNoneLeft')) : t('practiseOneSub', { left: me.drills.left, per: me.drills.perDay })}
+      >
+        <IonList>
           {PARTS.map((p) => (
-            <IonItem
-              key={p}
-              button
-              detail
-              disabled={!!a || me.drills.left < 1}
-              onClick={() => onStart(p)}
-              data-testid={`drill-${p}`}
-            >
-              <IonLabel className="ion-text-wrap">
-                <h3>{t('part', { p })} · {t(PART_NAME[p])}</h3>
-                <p>{t(PART_INFO[p])}</p>
-              </IonLabel>
-            </IonItem>
+            <PartRow key={p} p={p} disabled={drillsBlocked} onClick={() => onStart(p)} />
           ))}
         </IonList>
-        {(a || me.drills.left < 1) && (
-          <IonCardContent>
-            <p className="hint">{a ? t('finishOpenFirst') : t('practiseNoneLeft')}</p>
-          </IonCardContent>
-        )}
-      </IonCard>
+      </Section>
 
-      <IonCard button onClick={onOpenLibrary} data-testid="open-library">
-        <IonCardHeader>
-          <IonCardTitle>{t('library')}</IonCardTitle>
-          <IonCardSubtitle>{t('librarySub')}</IonCardSubtitle>
-        </IonCardHeader>
-        <IonCardContent>
-          <IonButton expand="block" fill="outline">
+      <Section title={t('moreWays')}>
+        <IonList>
+          <IonItem button detail onClick={onOpenLibrary} data-testid="open-library">
             <IonIcon slot="start" icon={bookOutline} />
-            {t('libraryAll')}
-          </IonButton>
-        </IonCardContent>
-      </IonCard>
-
-      <div className="ion-padding">
-        <IonButton fill="clear" expand="block" size="small" onClick={() => openTelegramLink(`https://t.me/${me.botUsername}?start=voice`)}>
-          <IonIcon slot="start" icon={chatbubbleEllipsesOutline} />
-          <span className="ion-text-wrap">{t('answerInChat')}</span>
-        </IonButton>
-      </div>
+            <IonLabel className="ion-text-wrap">
+              <h3>{t('library')}</h3>
+              <p>{t('librarySub')}</p>
+            </IonLabel>
+          </IonItem>
+          <IonItem button detail onClick={() => openTelegramLink(`https://t.me/${me.botUsername}?start=voice`)}>
+            <IonIcon slot="start" icon={chatbubbleEllipsesOutline} />
+            <IonLabel className="ion-text-wrap">
+              <h3>{t('chatTest')}</h3>
+              <p>{t('chatTestSub')}</p>
+            </IonLabel>
+          </IonItem>
+        </IonList>
+      </Section>
     </>
   );
 }
+
+const resultTitle = (t: T, h: Me['history'][number]) =>
+  h.kind === 'drill' && h.drillPart ? `${t('part', { p: h.drillPart })}: ${t(PART_NAME[h.drillPart])}` : t('fullTest');
 
 // ---------------------------------------------------------------- Progress
 function ProgressTab({ me, onOpenResult }: Props) {
@@ -173,37 +184,29 @@ function ProgressTab({ me, onOpenResult }: Props) {
       <ProgressCard history={me.history.filter((h) => h.kind !== 'drill')} />
 
       {me.history.length > 0 && (
-        <IonCard>
-          <IonCardHeader>
-            <IonCardTitle>🗂 {t('myResults')}</IonCardTitle>
-          </IonCardHeader>
+        <Section title={t('myResults')}>
           <IonList>
             {me.history.map((h) => (
               <IonItem key={h.id} button detail onClick={() => onOpenResult(h.id)}>
                 <IonLabel>
-                  <h3>{h.kind === 'drill' && h.drillPart ? `${t('part', { p: h.drillPart })} · ${t(PART_NAME[h.drillPart])}` : t('fullTest')}</h3>
+                  <h3>{resultTitle(t, h)}</h3>
                   <p>{new Date(h.date * 1000).toLocaleDateString()}</p>
                 </IonLabel>
-                <IonNote slot="end">
-                  <b>{h.score}</b>/75 <IonBadge color={levelColor(h.level)}>{levelLabel(t, h.level)}</IonBadge>
-                </IonNote>
+                <span slot="end" className="score-end">
+                  <b>{h.score}</b>
+                  <LevelBadge level={h.level} />
+                </span>
               </IonItem>
             ))}
           </IonList>
-        </IonCard>
+        </Section>
       )}
 
-      <IonCard>
-        <IonCardHeader>
-          <IonCardTitle>🏆 {t('topWeek')}</IonCardTitle>
-          <IonCardSubtitle>{board.mine ? t('myRank', { rank: board.mine.rank, score: board.mine.score }) : t('joinBoard')}</IonCardSubtitle>
-        </IonCardHeader>
+      <Section title={t('topWeek')} note={board.mine ? t('myRank', { rank: board.mine.rank, score: board.mine.score }) : t('joinBoard')}>
         {board.top.length === 0 ? (
-          <IonCardContent>
-            <p className="hint">{t('boardEmpty')}</p>
-          </IonCardContent>
+          <p className="pad hint" style={{ margin: 0 }}>{t('boardEmpty')}</p>
         ) : (
-          <IonList lines="none">
+          <IonList>
             {board.top.map((x) => (
               <IonItem key={x.rank} className={x.me ? 'board-me' : ''}>
                 <span slot="start" className="board-rank">{['🥇', '🥈', '🥉'][x.rank - 1] ?? x.rank}</span>
@@ -211,14 +214,15 @@ function ProgressTab({ me, onOpenResult }: Props) {
                   {x.name}
                   {x.me ? ` (${t('you')})` : ''}
                 </IonLabel>
-                <IonNote slot="end">
-                  <b>{x.score}</b>/75 <IonBadge color={levelColor(x.level)}>{levelLabel(t, x.level)}</IonBadge>
-                </IonNote>
+                <span slot="end" className="score-end">
+                  <b>{x.score}</b>
+                  <LevelBadge level={x.level} />
+                </span>
               </IonItem>
             ))}
           </IonList>
         )}
-      </IonCard>
+      </Section>
     </>
   );
 }
@@ -268,46 +272,40 @@ function FriendsTab({ me, onRefresh }: Props) {
 
   return (
     <>
-      <IonCard>
-        <IonCardHeader>
-          <IonCardTitle>🎁 {t('inviteTitle')}</IonCardTitle>
-          <IonCardSubtitle>{t('inviteText', { n: r.per })}</IonCardSubtitle>
-        </IonCardHeader>
-        <IonCardContent>
-          <div className="dots">
-            {Array.from({ length: r.per }, (_, i) => (
-              <div key={i} className={`dot ${i < r.progress ? 'on' : ''}`} />
-            ))}
+      <Section title={t('inviteTitle')} note={r.qualified > 0 ? t('inviteTotal', { n: r.qualified }) : undefined}>
+        <div className="pad stack">
+          <p className="body-text">{t('inviteText', { n: r.per })}</p>
+          <div>
+            <div className="dots">
+              {Array.from({ length: r.per }, (_, i) => (
+                <div key={i} className={`dot ${i < r.progress ? 'on' : ''}`} />
+              ))}
+            </div>
+            <p className="hint" style={{ margin: 0 }}>{t('inviteProgress', { p: r.progress, n: r.per })}</p>
           </div>
-          <p className="hint">{t('inviteProgress', { p: r.progress, n: r.per })}</p>
-          {r.qualified > 0 && <p className="hint">{t('inviteTotal', { n: r.qualified })}</p>}
           <IonButton expand="block" size="large" onClick={share} data-testid="invite-share">
             <IonIcon slot="start" icon={shareSocialOutline} /> {t('share')}
           </IonButton>
           <IonButton expand="block" fill="outline" onClick={copy}>
             <IonIcon slot="start" icon={copyOutline} /> {t('copy')}
           </IonButton>
-        </IonCardContent>
-      </IonCard>
+        </div>
+      </Section>
 
       {me.shop && (
-        <IonCard>
-          <IonCardHeader>
-            <IonCardTitle>⭐ {t('buyTitle')}</IonCardTitle>
-            <IonCardSubtitle>{t('buySub')}</IonCardSubtitle>
-          </IonCardHeader>
-          <IonList lines="none">
+        <Section title={t('buyTitle')} note={t('buySub')}>
+          <IonList>
             {me.shop.map((p) => (
               <IonItem key={p.id}>
                 <IonLabel>{p.attempts === 1 ? t('test1') : t('tests', { n: p.attempts })}</IonLabel>
                 <IonButton slot="end" fill="outline" disabled={!!buying} onClick={() => buy(p.id)} data-testid={`buy-${p.id}`}>
-                  <IonIcon slot="start" icon={starOutline} />
+                  <IonIcon slot="start" icon={star} />
                   {buying === p.id ? '…' : p.stars}
                 </IonButton>
               </IonItem>
             ))}
           </IonList>
-        </IonCard>
+        </Section>
       )}
     </>
   );
@@ -319,18 +317,14 @@ function SettingsTab({ me, onShowIntro }: Props) {
   const [toast] = useIonToast();
   return (
     <>
-      <IonCard>
-        <IonCardHeader>
-          <IonCardTitle>🌐 {t('language')}</IonCardTitle>
-          <IonCardSubtitle>{t('languageSub')}</IonCardSubtitle>
-        </IonCardHeader>
-        <IonCardContent>
+      <Section title={t('language')} note={t('languageSub')}>
+        <div className="pad">
           <IonSegment
             value={lang}
             data-testid="lang"
             onIonChange={(e) => {
               setLang(e.detail.value as Lang);
-              toast({ message: '✓', duration: 800, position: 'top' });
+              toast({ message: t('langSaved'), duration: 1000, position: 'top' });
             }}
           >
             {(Object.keys(LANG_NAMES) as Lang[]).map((l) => (
@@ -339,32 +333,24 @@ function SettingsTab({ me, onShowIntro }: Props) {
               </IonSegmentButton>
             ))}
           </IonSegment>
-        </IonCardContent>
-      </IonCard>
+        </div>
+      </Section>
 
-      <IonCard>
-        <IonCardHeader>
-          <IonCardTitle>📚 {t('examFormat')}</IonCardTitle>
-        </IonCardHeader>
-        <IonList lines="full">
+      <Section title={t('examFormat')}>
+        <IonList>
           {PARTS.map((p) => (
-            <IonItem key={p}>
-              <IonLabel className="ion-text-wrap">
-                <h3>{t('part', { p })} · {t(PART_NAME[p])}</h3>
-                <p>{t(PART_INFO[p])}</p>
-              </IonLabel>
-            </IonItem>
+            <PartRow key={p} p={p} />
           ))}
         </IonList>
-      </IonCard>
+      </Section>
 
-      <IonCard>
-        <IonList lines="full">
+      <Section note={`ID: ${me.user.id}`}>
+        <IonList>
           <IonItem button detail onClick={() => openTelegramLink(`https://t.me/${me.botUsername}`)}>
             <IonIcon slot="start" icon={chatbubbleEllipsesOutline} />
             <IonLabel className="ion-text-wrap">
               <h3>{t('help')}</h3>
-              <p>{t('helpText')} · ID: {me.user.id}</p>
+              <p>{t('helpText')}</p>
             </IonLabel>
           </IonItem>
           <IonItem button detail onClick={onShowIntro}>
@@ -372,7 +358,7 @@ function SettingsTab({ me, onShowIntro }: Props) {
             <IonLabel>{t('showIntro')}</IonLabel>
           </IonItem>
         </IonList>
-      </IonCard>
+      </Section>
     </>
   );
 }
