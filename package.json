@@ -1,7 +1,7 @@
 {
   "name": "cefr-speaking-bot",
   "version": "1.0.0",
-  "description": "Multilevel (CEFR) speaking mock \u2014 Telegram Mini App (React + Ionic) on Telegram Serverless, with OpenAI + Deepgram assessment",
+  "description": "Multilevel (CEFR) speaking mock — Telegram Mini App (React + Ionic) on Telegram Serverless, with OpenAI + Deepgram assessment",
   "scripts": {
     "dev": "node scripts/build-env.mjs --if-missing && vite",
     "dev:api": "node scripts/build-env.mjs --if-missing && node --no-warnings --import ./dev/register.mjs dev/server.mjs",
@@ -11,13 +11,15 @@
     "migrate": "tgcloud migrate",
     "status": "tgcloud status",
     "run": "tgcloud run",
-    "env": "node scripts/build-env.mjs --strict"
+    "env": "node scripts/build-env.mjs --strict",
+    "grade:sample": "node scripts/build-env.mjs --if-missing && node --no-warnings --import ./dev/register.mjs scripts/grade-sample.mjs"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/edumoschool/cefr_speakingBot.git"
   },
   "dependencies": {
+    "@fontsource-variable/onest": "^5.3.1",
     "@ionic/react": "^8.8.19",
     "ionicons": "^7.4.0",
     "react": "^18.3.1",

@@ -110,7 +110,7 @@ export function Exam({ sessionId, test, stream, startIndex, onDone }: Props) {
   const step = steps[index];
   const secs = Math.ceil(left);
   const rec = phase === 'rec';
-  const partTitle = `${t('part', { p: step.part })} · ${t(PART_NAME[step.part])}`;
+  const partTitle = `${t('part', { p: step.part })}: ${t(PART_NAME[step.part])}`;
 
   return (
     <IonPage>
@@ -136,7 +136,7 @@ export function Exam({ sessionId, test, stream, startIndex, onDone }: Props) {
                 <circle className="bg" cx="60" cy="60" r="52" />
                 <circle className="fg" cx="60" cy="60" r="52" style={{ strokeDashoffset: 326.7 * (1 - left / total) }} />
               </svg>
-              <div className="phase">{rec ? t('speakNow') : phase === 'listen' ? `🔊 ${t('listen')}` : t('prepare')}</div>
+              <div className="phase">{rec ? t('speakNow') : phase === 'listen' ? t('listen') : t('prepare')}</div>
               <div className="time">
                 {Math.floor(secs / 60)}:{String(secs % 60).padStart(2, '0')}
               </div>

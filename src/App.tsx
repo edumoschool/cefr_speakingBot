@@ -141,7 +141,7 @@ export default function App() {
       case 'loading':
         return <Message spinner text={t('loading')} />;
       case 'error':
-        return <Message emoji="⚠️" text={screen.message} action={t('tryAgain')} onAction={loadHome} />;
+        return <Message error text={screen.message} action={t('tryAgain')} onAction={loadHome} />;
       case 'onboarding':
         return <Onboarding referralsPer={me?.referral.per ?? 3} onDone={() => (me && !me.isMember ? setScreen({ name: 'gate' }) : goHome('practice'))} />;
       case 'gate':

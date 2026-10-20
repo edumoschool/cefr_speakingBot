@@ -100,7 +100,7 @@ export function Ready({ resuming, drill, botUsername, onBegin, onBack }: Props) 
   return (
     <IonPage>
       <IonContent className="ion-padding">
-        <h1 style={{ marginTop: 8 }}>{title}</h1>
+        <h1>{title}</h1>
         <IonList lines="none" className="tips">
           <IonItem>
             <IonIcon slot="start" icon={volumeMediumOutline} color="primary" />
@@ -116,6 +116,7 @@ export function Ready({ resuming, drill, botUsername, onBegin, onBack }: Props) 
           </IonItem>
         </IonList>
 
+        <div className="surface">
         <div className="mic-box">
           {mic === 'idle' && (
             <IonButton expand="block" fill="outline" onClick={checkMic} data-testid="mic-check">
@@ -130,7 +131,7 @@ export function Ready({ resuming, drill, botUsername, onBegin, onBack }: Props) 
               </div>
             </>
           )}
-          {mic === 'playing' && <p>🔊 {t('micPlaying')}</p>}
+          {mic === 'playing' && <p>{t('micPlaying')}</p>}
           {mic === 'ok' && (
             <p className="ok-line">
               <IonIcon icon={checkmarkCircle} color="success" /> {t('micOk')}
@@ -146,12 +147,14 @@ export function Ready({ resuming, drill, botUsername, onBegin, onBack }: Props) 
           )}
         </div>
 
-        <IonList lines="none">
+        <IonList lines="none" className="surface-row">
           <IonItem>
+            <IonIcon slot="start" icon={volumeMediumOutline} />
             <IonLabel className="ion-text-wrap">{t('readAloud')}</IonLabel>
             <IonToggle slot="end" checked={readAloud} onIonChange={(e) => setReadAloud(e.detail.checked)} aria-label={t('readAloud')} />
           </IonItem>
         </IonList>
+        </div>
       </IonContent>
       <IonFooter className="ion-padding ion-no-border">
         <IonButton expand="block" size="large" onClick={begin} disabled={mic === 'recording' || mic === 'playing'} data-testid="begin">
