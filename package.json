@@ -11,7 +11,8 @@
     "migrate": "tgcloud migrate",
     "status": "tgcloud status",
     "run": "tgcloud run",
-    "env": "node scripts/build-env.mjs --strict"
+    "env": "node scripts/build-env.mjs --strict",
+    "grade:sample": "node scripts/build-env.mjs --if-missing && node --no-warnings --import ./dev/register.mjs scripts/grade-sample.mjs"
   },
   "repository": {
     "type": "git",
