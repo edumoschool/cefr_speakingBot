@@ -80,10 +80,27 @@ test('short answers cap fluency and task response; silence scores zero', () => {
   const p = scorePart(c1, 3, 120);
   assert.equal(p.criteria.fluency_coherence, 'A1');
   assert.equal(p.criteria.task_response, 'A1');
-  assert.equal(p.criteria.grammar, 'C1');
+  assert.equal(p.criteria.grammar, 'B1', 'a far too short answer caps the other criteria too');
   assert.equal(scorePart(c1, 0, 120).points, 0);
   assert.equal(scorePart(null, 50, 30).points, 0);
   assert.equal(lengthCap(0, 30), 'none');
+});
+
+test('one harsh grammar or fluency label cannot sink a good answer', () => {
+  const p = scorePart({ fluency_coherence: 'B1-', lexical_resource: 'B2', grammar: 'A2', pronunciation: 'B2', task_response: 'B2' }, 1000, 60);
+  assert.equal(p.criteria.grammar, 'B1+', 'pulled up to 2 sub-levels below the median (B2)');
+  assert.equal(p.criteria.fluency_coherence, 'B1+');
+  assert.equal(cefrFromScore(p.points), 'B2');
+});
+
+test('no overgrading: inflated outliers, ASR-guessed pronunciation and off-topic answers', () => {
+  const lifted = scorePart({ fluency_coherence: 'B1', lexical_resource: 'C1+', grammar: 'B1', pronunciation: 'C1', task_response: 'B1' }, 1000, 60);
+  assert.equal(lifted.criteria.lexical_resource, 'B2-', 'a few fancy words do not make C1');
+  assert.equal(lifted.criteria.pronunciation, 'B1+', 'pronunciation stays within one sub-level');
+  const offTopic = scorePart({ fluency_coherence: 'B2', lexical_resource: 'B2', grammar: 'B2', pronunciation: 'B2', task_response: 'A2' }, 1000, 60);
+  assert.equal(offTopic.criteria.task_response, 'A2', 'task response is never lifted');
+  assert.ok(['fluency_coherence', 'lexical_resource', 'grammar', 'pronunciation'].every((c) => offTopic.criteria[c] === 'B1'));
+  assert.equal(cefrFromScore(offTopic.points), 'B1');
 });
 
 // Active once scripts/generate-audio.mjs has filled the manifest.

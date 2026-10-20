@@ -39,19 +39,48 @@ export function lengthCap(words, allowedSec) {
   return 'C1+';
 }
 
+// The same idea as a local examiner marking one candidate: the five criteria
+// describe one speaker, so they rarely sit far apart. Pronunciation is inferred
+// from ASR (the model never hears the audio), so it stays closest to the rest.
+const SPREAD = 2; // sub-levels a criterion may sit above/below the part's median
+const PRON_SPREAD = 1;
+// Off-topic or memorised answers: a weak task response caps everything else.
+const WEAK_TASK = idx('B1-');
+const WEAK_TASK_CAP = 'B1';
+
+const clamp = (l, lo, hi) => LEVELS[Math.min(Math.max(idx(l), lo), hi)];
+
 /**
- * Applies guardrails to one part's raw LLM labels.
+ * Applies guardrails to one part's raw LLM labels, in this order:
+ *  1. an outlier criterion is pulled back towards the part's median, so one
+ *     harsh grammar label can't sink a good answer and one generous vocabulary
+ *     label can't lift a weak one (task response is only ever lowered);
+ *  2. fluency and task response are capped by how much was actually said;
+ *  3. a part that misses the task (task_response below B1-, off-topic or far too
+ *     short) caps the other criteria at B1.
  * @param {Record<string,string>|null} raw  labels from the model (null = not graded)
  * @param {number} words      content words spoken in the part
  * @param {number} allowedSec speaking time allowed for the answered questions
  */
 export function scorePart(raw, words, allowedSec) {
+  const given = Object.fromEntries(CRITERIA.map((c) => [c, raw && LEVELS.includes(raw[c]) ? raw[c] : 'none']));
+  const median = CRITERIA.map((c) => idx(given[c])).sort((a, b) => a - b)[Math.floor(CRITERIA.length / 2)];
+  const empty = words === 0 || median === 0;
+  const cap = lengthCap(words, allowedSec);
   const criteria = {};
   for (const c of CRITERIA) {
-    let l = raw && LEVELS.includes(raw[c]) ? raw[c] : 'none';
-    if (words === 0) l = 'none';
-    else if (c === 'fluency_coherence' || c === 'task_response') l = minLevel(l, lengthCap(words, allowedSec));
+    let l = given[c];
+    if (empty) l = 'none';
+    else {
+      const spread = c === 'pronunciation' ? PRON_SPREAD : SPREAD;
+      l = clamp(l, Math.max(1, median - spread), median + spread);
+      if (c === 'task_response') l = minLevel(l, given[c]); // never lifted: it is the anchor against overgrading
+      if (c === 'fluency_coherence' || c === 'task_response') l = minLevel(l, cap);
+    }
     criteria[c] = l;
+  }
+  if (!empty && idx(criteria.task_response) < WEAK_TASK) {
+    for (const c of CRITERIA) if (c !== 'task_response') criteria[c] = minLevel(criteria[c], WEAK_TASK_CAP);
   }
   const points = CRITERIA.reduce((s, c) => s + LEVEL_POINTS[criteria[c]], 0) / CRITERIA.length;
   return { criteria, points: Math.round(points * 10) / 10 };
